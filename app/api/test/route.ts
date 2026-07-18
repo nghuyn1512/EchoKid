@@ -4,24 +4,18 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     const response = await ai.models.generateContent({
-      model: "models/gemini-2.5-flash",
-      contents: "Say hello."
+      model: "gemini-3-flash-preview", 
+      contents: "Say hello world",
     });
     
-
-    return NextResponse.json(response);
+    return NextResponse.json({ text: response.text });
 
   } catch (e: any) {
     console.error("FULL ERROR:", e);
-    console.error("STATUS:", e.status);
-    console.error("MESSAGE:", e.message);
-    console.error("BODY:", e.error);
-
     return NextResponse.json(
       {
-        status: e.status,
-        message: e.message,
-        error: e.error,
+        status: e.status || 500,
+        message: e.message || "Something went wrong",
       },
       { status: 500 }
     );
