@@ -1,11 +1,37 @@
-export interface Recommendation {
+export type Severity = "mild" | "moderate" | "high";
 
-    summary:string;
+export interface AnalysisResult {
+  flaggedPatterns: string[];
+  severity: Severity;
+  comparisonToBaseline: string;
+}
 
-    riskLevel:"low"|"medium"|"high";
+export interface Activity {
+  id: string;
+  title: string;
+  targetBehaviors: string[];
+  ageRangeMonths: [number, number];
+  durationMinutes: number;
+  frameworkTag: string;
+  steps: string[];
+}
 
-    activities:string[];
-
-    parentTips:string[];
-
+export interface RecommendationResult {
+  logId: string;
+  severityLevel: Severity;
+  empathyMessage: string;
+  contextSummary: string;
+  recommendation: {
+    activityId: string;
+    title: string;
+    durationMinutes: number;
+    whyThis: string;
+    steps: string[];
+  };
+  escalation: {
+    shouldSuggestExpert: boolean;
+    message: string | null;
+  };
+  disclaimer: string;
+  createdAt: unknown;
 }

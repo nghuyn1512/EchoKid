@@ -1,7 +1,5 @@
-import { error } from "console";
 import NextAuth, {NextAuthOptions} from "next-auth"
 import Google from "next-auth/providers/google"
-import { refresh } from "next/cache";
 import { getOrCreateUser } from "@/services/firestore.service";
 async function refreshAccessToken(token:any){
     try{

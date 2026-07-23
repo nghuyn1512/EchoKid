@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "name": "BS CKII Thành Ngọc Minh",
+    "specialty": "Nhi khoa & Tâm bệnh học",
+    "hospital": "Bệnh viện Nhi TW",
+    "experience": "30 years+",
+    "location": "Hanoi",
+    "image": "/img/tnm.jpg",
+    "description":"BS CKII Thành Ngọc Minh là Trưởng Khoa Tâm bệnh, Bệnh viện Nhi Trung ương."
+  },
+  {
+    "id": 2,
+    "name":"BS CKII Lã Thị Bưởi",
+    "specialty": "Sức khỏe & Tâm thần",
+    "hospital": "Viện Sức khỏe & Tâm thần TW",
+    "experience": "40 years+",
+    "location": "Hà Nội",
+    "image": "/img/ltb.webp",
+    "description":"Bác sĩ đã có trên 30 năm kinh nghiệm giảng dạy tại Đại học Y Hà Nội và trên 40 năm kinh nghiệm khám, điều trị tại Viện sức khỏe tâm thần Trung ương."
+  }
+]
