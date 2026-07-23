@@ -6,7 +6,7 @@
     "hospital": "Bệnh viện Nhi TW",
     "experience": "30 years+",
     "location": "Hanoi",
-    "image": "/img/tnm.jpg",
+    "image": "/public/tnm.jpg",
     "description":"BS CKII Thành Ngọc Minh là Trưởng Khoa Tâm bệnh, Bệnh viện Nhi Trung ương."
   },
   {
@@ -16,7 +16,7 @@
     "hospital": "Viện Sức khỏe & Tâm thần TW",
     "experience": "40 years+",
     "location": "Hà Nội",
-    "image": "/img/ltb.webp",
+    "image": "/public/ltb.webp",
     "description":"Bác sĩ đã có trên 30 năm kinh nghiệm giảng dạy tại Đại học Y Hà Nội và trên 40 năm kinh nghiệm khám, điều trị tại Viện sức khỏe tâm thần Trung ương."
   }
 ]
