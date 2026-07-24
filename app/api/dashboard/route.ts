@@ -9,7 +9,7 @@ import {
 } from "@/services/firestore.service";
 
 function computeStreak(dates: string[]): number {
-  const sorted = [...dates].sort().reverse(); // mới nhất trước
+  const sorted = [...dates].sort().reverse();
   let streak = 0;
   let cursor = new Date();
   for (const d of sorted) {

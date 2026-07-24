@@ -46,14 +46,13 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, account, user }) {
-      if (account && user) {
+    if (account && user) {
         const firestoreUser = await getOrCreateUser({
           uid: account.providerAccountId,
           email: user.email ?? "",
           name: user.name ?? "",
           avatarUrl: user.image ?? "",
         });
- 
         return {
           ...token,
           uid: firestoreUser.uid,

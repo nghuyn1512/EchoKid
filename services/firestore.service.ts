@@ -30,10 +30,10 @@ export async function getOrCreateUser(params: {
 }): Promise<AppUser> {
   const userRef = doc(db, "users", params.uid);
   const snap = await getDoc(userRef);
-
   if (snap.exists()) {
     return snap.data() as AppUser;
   }
+  console.log(params);
 
   const newUser: AppUser = {
     uid: params.uid,
@@ -43,7 +43,6 @@ export async function getOrCreateUser(params: {
     childIds: [],
     createdAt: new Date().toISOString(),
   };
-
   await setDoc(userRef, newUser);
   return newUser;
 }
