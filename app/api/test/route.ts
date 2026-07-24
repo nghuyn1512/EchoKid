@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", 
-      contents: "Say hello world",
+      model: "gemini-3.5-flash", 
+      contents: "Say good moring",
     });
     
     return NextResponse.json({ text: response.text });

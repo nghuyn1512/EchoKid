@@ -20,7 +20,7 @@ và mức độ nghiêm trọng cần chú ý (mild/moderate/high).
 "high" CHỈ dùng khi có dấu hiệu tự làm đau bản thân, meltdown tăng đột biến bất thường, hoặc an toàn bị đe dọa.
 `.trim();
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite",
+    model: "gemini-3.5-flash",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -61,7 +61,7 @@ không phán xét, không dùng thuật ngữ y khoa), và 1 câu tóm tắt tì
 `.trim();
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite",
+    model: "gemini-3.5-flash",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
