@@ -18,6 +18,7 @@ const moods = [
   { value: "happy", label: "Vui vẻ", image: "/happy.png" },
   { value: "calm", label: "Bình tĩnh", image: "/calm.png" },
   { value: "irritable", label: "Cáu gắt", image: "/angry.png" },
+  { value: "anxious", label: "Lo âu", image: "/worry.png" },
   { value: "withdrawn", label: "Thu mình", image: "/shy.png" },
 ];
 const moodNames: Record<string, string> = Object.fromEntries(moods.map((item) => [item.value, item.label]));
@@ -28,10 +29,14 @@ function AnalysisContent() {
   const today = new Date().toLocaleDateString("en-CA");
   const [mood, setMood] = useState("calm");
   const [sleepHours, setSleepHours] = useState(8);
+  const [sleepQuality, setSleepQuality] = useState("good");
   const [social, setSocial] = useState("medium");
   const [focus, setFocus] = useState("medium");
   const [ateNormally, setAteNormally] = useState(true);
+  const [mealNotes, setMealNotes] = useState("");
   const [meltdown, setMeltdown] = useState(false);
+  const [meltdownCount, setMeltdownCount] = useState(1);
+  const [meltdownTrigger, setMeltdownTrigger] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<Recommendation | null>(null);
@@ -54,9 +59,13 @@ function AnalysisContent() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           childId, date: today, mood,
-          sleep: { hours: sleepHours, quality: sleepHours >= 8 ? "good" : sleepHours >= 6 ? "restless" : "poor" },
-          meal: { ateNormally }, socialInteraction: social, focus, freeTextNote: note,
-          meltdownEvent: meltdown ? { trigger: note || "Chưa rõ tác nhân" } : undefined,
+          sleep: { hours: sleepHours, quality: sleepQuality },
+          meal: { ateNormally, notes: mealNotes }, socialInteraction: social, focus, freeTextNote: note,
+          meltdown: {
+            occurred: meltdown,
+            count: meltdown ? meltdownCount : 0,
+            trigger: meltdown ? meltdownTrigger : "",
+          },
           markCompleted: true,
         }),
       });
@@ -87,7 +96,6 @@ function AnalysisContent() {
       <div className="ai-shell">
         <header className="ai-header">
           <div><span className="eyebrow"><i /> AI đồng hành</span><h1>Ghi nhận một khoảnh khắc,<br /><em>hiểu thêm về con.</em></h1><p>Mỗi lần lưu là một điểm trên hành trình. Ba mẹ có thể ghi nhiều lần trong ngày.</p></div>
-          <div className="ai-clock"><small>Thời điểm hiện tại</small><strong>{new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</strong><span>{new Date().toLocaleDateString("vi-VN")}</span></div>
         </header>
 
         <div className="ai-layout">
@@ -125,9 +133,40 @@ function AnalysisContent() {
                   </span>
                 </div>
               </label>
+              <div className="segmented-field">
+                <span>Chất lượng giấc ngủ</span>
+                <div>
+                  {[["good", "Ngủ tốt"], ["restless", "Trằn trọc"], ["poor", "Ngủ kém"]].map(([value, label]) => (
+                    <button key={value} className={sleepQuality === value ? "is-active" : ""} onClick={() => setSleepQuality(value)}>{label}</button>
+                  ))}
+                </div>
+              </div>
               <div className="segmented-field"><span>Tương tác xã hội</span><div>{["low", "medium", "high"].map((v) => <button key={v} className={social === v ? "is-active" : ""} onClick={() => setSocial(v)}>{v === "low" ? "Thấp" : v === "medium" ? "Vừa" : "Tốt"}</button>)}</div></div>
               <div className="segmented-field"><span>Khả năng tập trung</span><div>{["low", "medium", "high"].map((v) => <button key={v} className={focus === v ? "is-active" : ""} onClick={() => setFocus(v)}>{v === "low" ? "Thấp" : v === "medium" ? "Vừa" : "Tốt"}</button>)}</div></div>
-              <div className="toggle-row"><button className={ateNormally ? "is-on" : ""} onClick={() => setAteNormally((v) => !v)}><i /> Ăn uống bình thường</button><button className={meltdown ? "is-alert" : ""} onClick={() => setMeltdown((v) => !v)}><i /> Có cơn mất kiểm soát</button></div>
+              <section className="observation-block observation-block--meal">
+                <header><span>04</span><div><h3>Ăn uống</h3><p>Ghi nhận tình trạng ăn uống trong lần quan sát này.</p></div></header>
+                <button className={`observation-toggle ${ateNormally ? "is-on" : ""}`} onClick={() => setAteNormally((v) => !v)}><i /> Ăn uống bình thường</button>
+                {!ateNormally && (
+                  <label className="note-field">Ghi chú bữa ăn<textarea value={mealNotes} onChange={(e) => setMealNotes(e.target.value)} placeholder="Ví dụ: Chỉ ăn bánh gạo, từ chối cơm..." /></label>
+                )}
+              </section>
+
+              <section className="observation-block observation-block--meltdown">
+                <header><span>05</span><div><h3>Meltdown</h3><p>Cơn mất kiểm soát cảm xúc hoặc hành vi của bé.</p></div></header>
+                <button className={`observation-toggle ${meltdown ? "is-alert" : ""}`} onClick={() => setMeltdown((v) => !v)}><i /> Có xảy ra meltdown</button>
+                {meltdown && (
+                  <div className="meltdown-details">
+                    <label>
+                      Số lần
+                      <input type="number" min="1" max="20" value={meltdownCount} onChange={(e) => setMeltdownCount(Math.min(20, Math.max(1, Number(e.target.value) || 1)))} />
+                    </label>
+                    <label>
+                      Tác nhân có thể xảy ra
+                      <input value={meltdownTrigger} onChange={(e) => setMeltdownTrigger(e.target.value)} placeholder="Ví dụ: Đồ ăn không đúng vị" />
+                    </label>
+                  </div>
+                )}
+              </section>
               <label className="note-field">Ghi chú thêm<textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Điều gì vừa xảy ra? Có tác nhân nào đáng chú ý không?" /></label>
             </div>
             {error && <p className="form-error">{error}</p>}

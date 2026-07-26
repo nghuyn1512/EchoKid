@@ -19,7 +19,7 @@ export default function Home() {
         <section className="hero-card">
           <div className="hero-copy">
             <span className="eyebrow"><i /> Đồng hành cùng con mỗi ngày</span>
-            <h1>Hiểu cảm xúc.<br /><em>Nuôi dưỡng kết nối.</em></h1>
+            <h1><span className="hero-title-line">Hiểu cảm xúc.</span><em>Nuôi dưỡng kết nối.</em></h1>
             <p>EchoKid giúp ba mẹ ghi nhận những điều nhỏ bé, hiểu thay đổi của con và nhận gợi ý phù hợp cho từng thời điểm.</p>
             <div className="hero-actions">
               {session ? (
@@ -40,6 +40,7 @@ export default function Home() {
             <div className="mood-orbit">
               <span className="mood mood--pink"><img src="/angry.png" alt="Cáu gắt" /></span>
               <span className="mood mood--yellow"><img src="/happy.png" alt="Vui vẻ" /></span>
+              <span className="mood mood--worry"><img src="/worry.png" alt="Lo âu" /></span>
               <span className="mood mood--purple"><img src="/shy.png" alt="Thu mình" /></span>
               <span className="mood mood--aqua"><img src="/calm.png" alt="Bình tĩnh" /></span>
             </div>

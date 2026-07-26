@@ -131,12 +131,16 @@ export async function upsertDailyLog(
     await updateDoc(ref, patch);
   }
 
-  if (input.meltdownEvent) {
+  const meltdownOccurred = input.meltdown?.occurred || !!input.meltdownEvent;
+  const meltdownCount = input.meltdown?.count ?? (input.meltdownEvent ? 1 : 0);
+  const meltdownTrigger = input.meltdown?.trigger ?? input.meltdownEvent?.trigger ?? "";
+  if (meltdownOccurred && meltdownCount > 0) {
     await updateDoc(ref, {
-      "meltdown.totalCount": increment(1),
+      "meltdown.totalCount": increment(meltdownCount),
       "meltdown.events": arrayUnion({
         time: new Date().toTimeString().slice(0, 5),
-        trigger: input.meltdownEvent.trigger,
+        trigger: meltdownTrigger,
+        count: meltdownCount,
       }),
     });
   }
@@ -144,6 +148,9 @@ export async function upsertDailyLog(
 
 export async function createObservation(input: DailyLogInput): Promise<string> {
   const observedAt = new Date().toISOString();
+  const meltdownOccurred = input.meltdown?.occurred || !!input.meltdownEvent;
+  const meltdownCount = input.meltdown?.count ?? (input.meltdownEvent ? 1 : 0);
+  const meltdownTrigger = input.meltdown?.trigger ?? input.meltdownEvent?.trigger ?? "";
   const ref = await addDoc(collection(db, observations), {
     childId: input.childId,
     date: input.date,
@@ -153,9 +160,9 @@ export async function createObservation(input: DailyLogInput): Promise<string> {
     sleep: input.sleep ?? { hours: 0, quality: "good" },
     meal: input.meal ?? { ateNormally: true },
     meltdown: {
-      totalCount: input.meltdownEvent ? 1 : 0,
-      events: input.meltdownEvent
-        ? [{ time: observedAt.slice(11, 16), trigger: input.meltdownEvent.trigger }]
+      totalCount: meltdownOccurred ? meltdownCount : 0,
+      events: meltdownOccurred
+        ? [{ time: observedAt.slice(11, 16), trigger: meltdownTrigger, count: meltdownCount }]
         : [],
     },
     socialInteraction: input.socialInteraction ?? "medium",

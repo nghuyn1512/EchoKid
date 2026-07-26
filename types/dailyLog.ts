@@ -38,6 +38,11 @@ export interface DailyLogInput {
   sleep?: { hours: number; quality: SleepQuality };
   meal?: { ateNormally: boolean; notes?: string };
   meltdownEvent?: { trigger: string }; 
+  meltdown?: {
+    occurred: boolean;
+    count: number;
+    trigger?: string;
+  };
   socialInteraction?: Level;
   focus?: Level;
   freeTextNote?: string;

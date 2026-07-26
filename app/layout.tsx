@@ -4,6 +4,18 @@ import Providers from "@/components/provider";
 import Navbar from "@/components/navbar";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { Alfa_Slab_One, Roboto_Slab } from "next/font/google";
+
+const alfaSlab = Alfa_Slab_One({
+  weight: "400",
+  subsets: ["latin", "vietnamese"],
+  variable: "--font-alfa-slab",
+});
+
+const robotoSlab = Roboto_Slab({
+  subsets: ["latin", "vietnamese"],
+  variable: "--font-roboto-slab",
+});
 
 export const metadata: Metadata = {
   title: "EchoKid",
@@ -17,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi">
+    <html lang="vi" className={`${alfaSlab.variable} ${robotoSlab.variable}`}>
       <body>
         <Providers>
           <Suspense fallback={<div className="sidebar-fallback" aria-hidden="true" />}>
