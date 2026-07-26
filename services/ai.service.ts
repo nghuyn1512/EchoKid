@@ -1,89 +1,123 @@
 import { Type } from "@google/genai";
-import {ai} from "@/lib/gemini";
+import { ai } from "@/lib/gemini";
 import type { Child } from "@/types/child";
-import type { DailyLog } from "@/types/dailyLog";
-import type { AnalysisResult } from "@/types/recommendation";
-import { ACTIVITIES } from "@/lib/activities";
+import type { Observation } from "@/types/dailyLog";
+import type { Severity } from "@/types/recommendation";
 
-export async function analyzeLog(
-  child: Child,
-  todayLog: DailyLog,
-  recentLogs: DailyLog[]
-): Promise<AnalysisResult> {
-  const prompt = `
-Bạn là hệ thống hỗ trợ phân tích hành vi trẻ có nhu cầu phát triển đặc biệt (KHÔNG chẩn đoán y tế).
-Trẻ: ${child.ageMonths} tháng tuổi, chẩn đoán/nghi ngờ: ${child.diagnosis?.type?.join(", ") || "chưa rõ"}.
-Log hôm nay: ${JSON.stringify(todayLog)}
-Log ${recentLogs.length} ngày gần đây: ${JSON.stringify(recentLogs)}
-Nhiệm vụ: so sánh hôm nay với xu hướng gần đây, xác định các pattern đáng chú ý (KHÔNG chẩn đoán bệnh),
-và mức độ nghiêm trọng cần chú ý (mild/moderate/high).
-"high" CHỈ dùng khi có dấu hiệu tự làm đau bản thân, meltdown tăng đột biến bất thường, hoặc an toàn bị đe dọa.
-`.trim();
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: {
-        type: Type.OBJECT,
-        properties: {
-          flaggedPatterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-          severity: { type: Type.STRING, enum: ["mild", "moderate", "high"] },
-          comparisonToBaseline: { type: Type.STRING },
-        },
-        required: ["flaggedPatterns", "severity", "comparisonToBaseline"],
-      },
-    },
-  });
-  if (!response.text){
-    throw new Error("Gemini returned empty response")
-  }
-  return JSON.parse(response.text) as AnalysisResult;
+export type AIRecommendation = {
+  severityLevel: Severity;
+  flaggedPatterns: string[];
+  empathyMessage: string;
+  contextSummary: string;
+  recommendation: {
+    title: string;
+    durationMinutes: number;
+    whyThis: string;
+    steps: string[];
+  };
+  escalation: {
+    shouldSuggestExpert: boolean;
+    message: string | null;
+  };
+};
+
+function compactObservation(item: Observation) {
+  return {
+    observedAt: item.observedAt,
+    mood: item.mood,
+    sleep: item.sleep,
+    meal: item.meal,
+    meltdown: item.meltdown,
+    socialInteraction: item.socialInteraction,
+    focus: item.focus,
+    parentNote: item.freeTextNote || "",
+  };
 }
 
-export async function pickActivity(
+export async function generateAIRecommendation(
   child: Child,
-  todayLog: DailyLog,
-  analysis: AnalysisResult
-): Promise<{ activityId: string; whyThis: string; empathyMessage: string; contextSummary: string }> {
-  const candidateList = ACTIVITIES.map(({ id, title, targetBehaviors, ageRangeMonths }) => ({
-    id, title, targetBehaviors, ageRangeMonths,
-  }));
+  current: Observation,
+  recent: Observation[]
+): Promise<AIRecommendation> {
+  if (!process.env.GEMINI_API_KEY) throw new Error("AI_NOT_CONFIGURED");
 
   const prompt = `
-Trẻ ${child.ageMonths} tháng tuổi. Log hôm nay: ${JSON.stringify(todayLog)}.
-Phân tích: ${JSON.stringify(analysis)}.
-Danh sách hoạt động được phép chọn (BẮT BUỘC chọn đúng 1 "id" trong danh sách này, không tự tạo hoạt động mới):
-${JSON.stringify(candidateList)}
+Bạn là trợ lý AI hỗ trợ phụ huynh quan sát hành vi và cảm xúc của trẻ. Bạn KHÔNG chẩn đoán bệnh và KHÔNG thay thế bác sĩ.
 
-Trả về: id hoạt động phù hợp nhất, lý do ngắn gọn (whyThis), 1 câu đồng cảm mở đầu (empathyMessage,
-không phán xét, không dùng thuật ngữ y khoa), và 1 câu tóm tắt tình huống hôm nay (contextSummary).
+HỒ SƠ TRẺ:
+- Tuổi: ${child.ageMonths} tháng
+- Giới tính: ${child.gender}
+- Tình trạng đã biết: ${child.diagnosis?.type?.join(", ") || "Chưa có thông tin"}
+- Mục tiêu gia đình: ${child.goals?.join(", ") || "Chưa ghi nhận"}
+
+LẦN GHI NHẬN VỪA XẢY RA (đây là dữ liệu quan trọng nhất):
+${JSON.stringify(compactObservation(current), null, 2)}
+
+CÁC LẦN GHI NHẬN TRƯỚC ĐÓ ĐỂ SO SÁNH (cũ đến mới):
+${JSON.stringify(recent.slice(-20).map(compactObservation), null, 2)}
+
+Hãy thực hiện:
+1. Phân tích RIÊNG lần ghi nhận vừa xảy ra và so sánh với lịch sử nếu đủ dữ liệu.
+2. Nêu ngắn gọn những pattern thực sự có căn cứ trong dữ liệu. Không bịa thêm triệu chứng hoặc hoàn cảnh.
+3. Tạo MỘT hoạt động cụ thể, an toàn, dễ thực hiện tại nhà ngay lúc này, phù hợp tuổi và dữ liệu vừa nhập.
+4. Các bước phải đủ cụ thể để phụ huynh làm theo, từ 3 đến 5 bước. Không sao chép mẫu cố định.
+5. Chỉ đặt severityLevel="high" khi dữ liệu thể hiện nguy cơ an toàn, tự gây thương tích, hoặc mất kiểm soát tăng mạnh. Nếu dữ liệu không đủ thì chọn "mild".
+6. Viết hoàn toàn bằng tiếng Việt, giọng ấm áp, không phán xét.
 `.trim();
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-3.6-flash",
     contents: prompt,
     config: {
+      temperature: 0.35,
       responseMimeType: "application/json",
-      responseJsonSchema: {
+      responseSchema: {
         type: Type.OBJECT,
         properties: {
-          activityId: { type: Type.STRING },
-          whyThis: { type: Type.STRING },
+          severityLevel: { type: Type.STRING, enum: ["mild", "moderate", "high"] },
+          flaggedPatterns: { type: Type.ARRAY, items: { type: Type.STRING } },
           empathyMessage: { type: Type.STRING },
           contextSummary: { type: Type.STRING },
+          recommendation: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              durationMinutes: { type: Type.INTEGER, minimum: 5, maximum: 30 },
+              whyThis: { type: Type.STRING },
+              steps: {
+                type: Type.ARRAY,
+                minItems: 3,
+                maxItems: 5,
+                items: { type: Type.STRING },
+              },
+            },
+            required: ["title", "durationMinutes", "whyThis", "steps"],
+          },
+          escalation: {
+            type: Type.OBJECT,
+            properties: {
+              shouldSuggestExpert: { type: Type.BOOLEAN },
+              message: { type: Type.STRING, nullable: true },
+            },
+            required: ["shouldSuggestExpert", "message"],
+          },
         },
-        required: ["activityId", "whyThis", "empathyMessage", "contextSummary"],
+        required: [
+          "severityLevel", "flaggedPatterns", "empathyMessage",
+          "contextSummary", "recommendation", "escalation",
+        ],
       },
     },
   });
-  if(!response.text){
-    throw new Error("Gemini returned empty response");
+
+  if (!response.text) throw new Error("AI_EMPTY_RESPONSE");
+  try {
+    const result = JSON.parse(response.text) as AIRecommendation;
+    if (!result.recommendation?.steps?.length || !result.contextSummary) {
+      throw new Error("Invalid AI response");
+    }
+    return result;
+  } catch {
+    throw new Error("AI_INVALID_RESPONSE");
   }
-  const parsed = JSON.parse(response.text);
-  const valid = ACTIVITIES.some((a) => a.id === parsed.activityId);
-  return {
-    ...parsed,
-    activityId: valid ? parsed.activityId : "act_default_calm",
-  };
 }

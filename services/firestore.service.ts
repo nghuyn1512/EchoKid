@@ -12,15 +12,17 @@ import {
   increment,
   limit as fsLimit,
   orderBy,
+  addDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AppUser, Child, CreateChildInput } from "@/types/child";
-import type { DailyLog,DailyLogInput } from "@/types/dailyLog";
+import type { DailyLog, DailyLogInput, Observation } from "@/types/dailyLog";
 import type { RecommendationResult } from "@/types/recommendation";
 
 const daily_logs = "dailyLogs";
 const recommendations = "recommendations";
 const children = "children";
+const observations = "observations";
 
 export async function getOrCreateUser(params: {
   uid: string;
@@ -89,7 +91,7 @@ function todayId(childId: string, date: string) {
 
 export async function assertChildOwnership(childId: string, parentId: string){
   const snap = await getDoc(doc(db,children,childId));
-  if(!snap.exists() || snap.data().parentId !== parentId){
+  if(!snap.exists() || snap.data().parentUid !== parentId){
     throw new Error("FORBIDDEN");
   }
   return snap.data() as Child;
@@ -101,12 +103,6 @@ export async function upsertDailyLog(
   const ref = doc(db, daily_logs, id);
 
   const existing = await getDoc(ref);
-
-  const today = new Date().toLocaleDateString("en-CA");
-
-  if (existing.exists() && input.date !== today) {
-    throw new Error("LOG_LOCKED");
-  }
 
   const patch: Record<string, unknown> = {
     childId: input.childId,
@@ -144,6 +140,50 @@ export async function upsertDailyLog(
       }),
     });
   }
+}
+
+export async function createObservation(input: DailyLogInput): Promise<string> {
+  const observedAt = new Date().toISOString();
+  const ref = await addDoc(collection(db, observations), {
+    childId: input.childId,
+    date: input.date,
+    time: observedAt.slice(11, 16),
+    observedAt,
+    mood: input.mood ?? "calm",
+    sleep: input.sleep ?? { hours: 0, quality: "good" },
+    meal: input.meal ?? { ateNormally: true },
+    meltdown: {
+      totalCount: input.meltdownEvent ? 1 : 0,
+      events: input.meltdownEvent
+        ? [{ time: observedAt.slice(11, 16), trigger: input.meltdownEvent.trigger }]
+        : [],
+    },
+    socialInteraction: input.socialInteraction ?? "medium",
+    focus: input.focus ?? "medium",
+    freeTextNote: input.freeTextNote ?? "",
+    status: input.markCompleted ? "completed" : "in_progress",
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function getObservations(childId: string, days = 30): Promise<Observation[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const snapshot = await getDocs(
+    query(collection(db, observations), where("childId", "==", childId))
+  );
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() } as Observation))
+    .filter((item) => new Date(item.observedAt) >= cutoff)
+    .sort((a, b) => a.observedAt.localeCompare(b.observedAt));
+}
+
+export async function getObservation(observationId: string): Promise<Observation | null> {
+  const snapshot = await getDoc(doc(db, observations, observationId));
+  return snapshot.exists()
+    ? ({ id: snapshot.id, ...snapshot.data() } as Observation)
+    : null;
 }
 export async function getDailyLog(childId: string, date: string): Promise<DailyLog | null>{
   const snap = await getDoc(doc(db,daily_logs,todayId(childId,date)));

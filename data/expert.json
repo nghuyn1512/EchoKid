@@ -3,20 +3,20 @@
     "id": 1,
     "name": "BS CKII Thành Ngọc Minh",
     "specialty": "Nhi khoa & Tâm bệnh học",
-    "hospital": "Bệnh viện Nhi TW",
-    "experience": "30 years+",
-    "location": "Hanoi",
-    "image": "/public/tnm.jpg",
-    "description":"BS CKII Thành Ngọc Minh là Trưởng Khoa Tâm bệnh, Bệnh viện Nhi Trung ương."
+    "hospital": "Bệnh viện Nhi Trung ương",
+    "experience": "Trên 30 năm",
+    "location": "Hà Nội",
+    "image": "/echokid-logo.png",
+    "description": "Chuyên gia giàu kinh nghiệm trong đánh giá và đồng hành cùng trẻ có khó khăn về phát triển, hành vi và cảm xúc."
   },
   {
     "id": 2,
-    "name":"BS CKII Lã Thị Bưởi",
-    "specialty": "Sức khỏe & Tâm thần",
-    "hospital": "Viện Sức khỏe & Tâm thần TW",
-    "experience": "40 years+",
+    "name": "BS CKII Lã Thị Bưởi",
+    "specialty": "Sức khỏe tâm thần trẻ em",
+    "hospital": "Viện Sức khỏe Tâm thần",
+    "experience": "Trên 40 năm",
     "location": "Hà Nội",
-    "image": "/public/ltb.webp",
-    "description":"Bác sĩ đã có trên 30 năm kinh nghiệm giảng dạy tại Đại học Y Hà Nội và trên 40 năm kinh nghiệm khám, điều trị tại Viện sức khỏe tâm thần Trung ương."
+    "image": "/ltb.webp",
+    "description": "Có nhiều năm kinh nghiệm khám, điều trị và tư vấn các vấn đề tâm lý, hành vi và phát triển ở trẻ."
   }
 ]

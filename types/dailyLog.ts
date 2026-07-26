@@ -43,3 +43,10 @@ export interface DailyLogInput {
   freeTextNote?: string;
   markCompleted?: boolean;
 }
+
+export interface Observation extends Omit<DailyLog, "id" | "editableUntil" | "updatedAt"> {
+  id: string;
+  observedAt: string;
+  time: string;
+  createdAt: unknown;
+}

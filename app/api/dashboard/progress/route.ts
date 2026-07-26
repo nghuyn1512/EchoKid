@@ -1,7 +1,7 @@
 import { NextRequest,NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { assertChildOwnership,getLogsInRange } from "@/services/firestore.service";
+import { assertChildOwnership, getLogsInRange, getObservations } from "@/services/firestore.service";
 
 export async function GET(req: NextRequest){
     const session = await getServerSession(authOptions);
@@ -11,10 +11,13 @@ export async function GET(req: NextRequest){
     const childId = req.nextUrl.searchParams.get("childId");
     const range = req.nextUrl.searchParams.get("range") ?? "week";
     if(!childId){ return NextResponse.json({error: "childId là bắt buộc"},{status: 400});}
-    const days = range === "month" ? 30 : 7;
+    const days = range === "day" ? 1 : range === "month" ? 30 : 7;
     try {
         await assertChildOwnership(childId,session.user.id);
-        const logs = await getLogsInRange(childId,days);
+        const [logs, observations] = await Promise.all([
+            getLogsInRange(childId, days),
+            getObservations(childId, days),
+        ]);
         const dailyBreakdown = logs.map((l)=> ({
             date: l.date,
             mood: l.mood,
@@ -39,6 +42,18 @@ export async function GET(req: NextRequest){
         range,
         summary,
         dailyBreakdown,
+        observations: observations.map((item) => ({
+            id: item.id,
+            date: item.date,
+            time: item.time,
+            observedAt: item.observedAt,
+            mood: item.mood,
+            sleepHours: item.sleep?.hours ?? 0,
+            meltdownCount: item.meltdown?.totalCount ?? 0,
+            socialInteraction: item.socialInteraction,
+            focus: item.focus,
+            note: item.freeTextNote ?? "",
+        })),
         });
     } catch (err: any) {
         if (err.message === "FORBIDDEN") {
