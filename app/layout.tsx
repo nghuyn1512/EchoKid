@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   title: "EchoKid",
   description: "Đồng hành cùng ba mẹ để hiểu con mỗi ngày",
   icons: {
-    icon: "/echokid-logo.png",
-    shortcut: "/echokid-logo.png",
-    apple: "/echokid-logo.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
