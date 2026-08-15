@@ -218,6 +218,7 @@ img { display: block; max-width: 100%; }
   border-radius: 14px; outline: none; background: rgba(255,255,255,.88); color: var(--ink);
 }
 .form-grid input:focus, .form-grid select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(70,180,51,.1); }
+.age-input-group{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:7px}.age-input-group input,.age-input-group select{margin-top:7px}.age-input-group select{padding-inline:10px}
 .form-footer { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
 .form-footer .button { min-height: 43px; border-radius: 14px; padding: 0 18px; font-size: 12px; }
 .form-footer p { margin: 0; color: #a0474b; font-size: 12px; }
