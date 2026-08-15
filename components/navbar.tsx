@@ -8,7 +8,7 @@ import { useState } from "react";
 const navItems = [
   { path: "/dashboard", label: "Tiến trình", icon: "chart" },
   { path: "/children", label: "Chọn bé", icon: "child" },
-  { path: "/analysis", label: "AI đồng hành", icon: "spark" },
+  { path: "/daily-log", label: "Ghi nhận hằng ngày", icon: "spark" },
   { path: "/expert", label: "Chuyên gia", icon: "doctor" },
 ];
 

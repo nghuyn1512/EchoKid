@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Mood } from "@/types/dailyLog";
 
@@ -47,6 +47,7 @@ function trackSignals(track: Track): string[] {
 }
 
 function AnalysisContent() {
+  const router = useRouter();
   const params = useSearchParams();
   const childId = params.get("childId");
   const today = new Date().toLocaleDateString("en-CA");
@@ -112,14 +113,7 @@ function AnalysisContent() {
       });
       const recommendation = await recommendationResponse.json();
       if (!recommendationResponse.ok) throw new Error(recommendation.error || "AI chưa thể phân tích.");
-      setResult(recommendation);
-      setTracks((items) => [{
-        id: logData.observationId, date: today,
-        time: new Date().toTimeString().slice(0, 5), mood,
-        meltdown: { totalCount: meltdown ? meltdownCount : 0 },
-        sleep: { quality: sleepQuality }, socialInteraction: social, focus,
-        freeTextNote: note,
-      }, ...items].slice(0, 8));
+      router.replace(`/recommendation?childId=${encodeURIComponent(childId)}&observationId=${encodeURIComponent(logData.observationId)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra.");
     } finally { setSaving(false); }
@@ -134,6 +128,7 @@ function AnalysisContent() {
       <div className="ai-shell">
         <header className="ai-header">
           <div><span className="eyebrow"><i /> AI đồng hành</span><h1>Ghi nhận một khoảnh khắc,<br /><em>hiểu thêm về con.</em></h1><p>Mỗi lần lưu là một điểm trên hành trình. Ba mẹ có thể ghi nhiều lần trong ngày.</p></div>
+          <Link href={`/dashboard?childId=${encodeURIComponent(childId)}`} className="button button--ghost">← Về trang chủ</Link>
         </header>
 
         <div className="ai-layout">

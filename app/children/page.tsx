@@ -54,7 +54,7 @@ export default function ChildrenPage() {
         <section className="profile-picker">
           <div className="profile-grid">
             {loading ? <p>Đang tải hồ sơ...</p> : children.map((child, index) => (
-              <Link key={child.id} href={`/analysis?childId=${child.id}`} className="profile-card">
+              <Link key={child.id} href={`/dashboard?childId=${encodeURIComponent(child.id)}`} className="profile-card">
                 <span className={`profile-card__avatar tone-${index % 4}`}>{child.name.slice(0, 1).toUpperCase()}</span>
                 <div><h2>{child.name}</h2><p>{formatAge(child.ageMonths)} · {child.gender === "male" ? "Bé trai" : child.gender === "female" ? "Bé gái" : "Khác"}</p></div>
                 <span className="profile-card__go">→</span>

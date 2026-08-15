@@ -113,7 +113,7 @@ function DashboardContent() {
   }
 
   const encodedChildId = encodeURIComponent(childId);
-  const todayHref = `/analysis?childId=${encodedChildId}`;
+  const todayHref = `/daily-log?childId=${encodedChildId}`;
 
   return (
     <main className="dashboard-page home-dashboard">
