@@ -5,13 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Mood } from "@/types/dailyLog";
 import RecommendationFeedback from "@/components/recommendation-feedback";
+import type { ActivityReference } from "@/types/recommendation";
 
 type Recommendation = {
   logId: string;
   severityLevel: "mild" | "moderate" | "high";
   empathyMessage: string;
   contextSummary: string;
-  recommendation: { title: string; durationMinutes: number; whyThis: string; steps: string[] };
+  recommendation: { title: string; durationMinutes: number; whyThis: string; references?: ActivityReference[]; steps: string[] };
   escalation: { shouldSuggestExpert: boolean; message: string | null };
   disclaimer: string;
 };
@@ -222,7 +223,7 @@ function AnalysisContent() {
         {loadingSavedResult && <section className="saved-result-loading">Đang tải gợi ý gần nhất đã lưu...</section>}
         {result && <section className="ai-result">
           <div className="result-intro"><span className={`severity severity--${result.severityLevel}`}>{result.severityLevel === "high" ? "Cần chú ý" : result.severityLevel === "moderate" ? "Theo dõi thêm" : "Ổn định"}</span><h2>AI đã phân tích xong</h2><p>{result.contextSummary}</p><blockquote>{result.empathyMessage}</blockquote></div>
-          <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động ngay</small><h3>{result.recommendation.title}</h3><p>{result.recommendation.whyThis}</p><span className="duration">{result.recommendation.durationMinutes} phút</span><ol>{result.recommendation.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol><Link className="saved-recommendation-link" href={`/recommendation?childId=${encodeURIComponent(childId)}&observationId=${encodeURIComponent(result.logId)}`}>Xem chi tiết gợi ý đã lưu →</Link></div>
+          <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động ngay</small><h3>{result.recommendation.title}</h3><span className="duration">{result.recommendation.durationMinutes} phút</span><div className="recommendation-rationale"><div className="recommendation-rationale__why"><strong>Vì sao AI chọn hoạt động này?</strong><p>{result.recommendation.whyThis}</p></div>{(result.recommendation.references?.length ?? 0) > 0 && <div className="recommendation-sources"><strong>Nguồn tham khảo</strong><div>{result.recommendation.references?.map((reference) => <article key={reference.key}><span>↗</span><div><b>{reference.title}</b><small>{reference.organization}</small><p>{reference.note}</p></div></article>)}</div></div>}</div><strong className="action-plan__steps-title">Các bước thực hiện</strong><ol>{result.recommendation.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol><Link className="saved-recommendation-link" href={`/recommendation?childId=${encodeURIComponent(childId)}&observationId=${encodeURIComponent(result.logId)}`}>Xem chi tiết gợi ý đã lưu →</Link></div>
           <RecommendationFeedback childId={childId} observationId={result.logId} recommendationTitle={result.recommendation.title} />
           {result.escalation.shouldSuggestExpert && <div className="expert-nudge"><p>{result.escalation.message}</p><Link href={`/expert?childId=${childId}&date=${today}`}>Trao đổi với chuyên gia →</Link></div>}
           <small className="disclaimer">{result.disclaimer}</small>
