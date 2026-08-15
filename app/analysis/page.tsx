@@ -3,8 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import type { Mood } from "@/types/dailyLog";
 
 type Recommendation = {
+  logId: string;
   severityLevel: "mild" | "moderate" | "high";
   empathyMessage: string;
   contextSummary: string;
@@ -12,7 +14,17 @@ type Recommendation = {
   escalation: { shouldSuggestExpert: boolean; message: string | null };
   disclaimer: string;
 };
-type Track = { id: string; date: string; time: string; mood: string; freeTextNote?: string };
+type Track = {
+  id: string;
+  date: string;
+  time: string;
+  mood: string;
+  meltdown?: { totalCount?: number };
+  sleep?: { quality?: string };
+  socialInteraction?: string;
+  focus?: string;
+  freeTextNote?: string;
+};
 
 const moods = [
   { value: "happy", label: "Vui vẻ", image: "/happy.png" },
@@ -23,11 +35,22 @@ const moods = [
 ];
 const moodNames: Record<string, string> = Object.fromEntries(moods.map((item) => [item.value, item.label]));
 
+function trackSignals(track: Track): string[] {
+  const signals: string[] = [];
+  const meltdownCount = track.meltdown?.totalCount ?? 0;
+  if (meltdownCount > 0) signals.push(`Meltdown ${meltdownCount} lần`);
+  if (track.sleep?.quality === "poor") signals.push("Ngủ kém");
+  if (track.sleep?.quality === "restless") signals.push("Ngủ trằn trọc");
+  if (track.socialInteraction === "low") signals.push("Tương tác thấp");
+  if (track.focus === "low") signals.push("Tập trung thấp");
+  return signals;
+}
+
 function AnalysisContent() {
   const params = useSearchParams();
   const childId = params.get("childId");
   const today = new Date().toLocaleDateString("en-CA");
-  const [mood, setMood] = useState("calm");
+  const [mood, setMood] = useState<Mood>("calm");
   const [sleepHours, setSleepHours] = useState(8);
   const [sleepQuality, setSleepQuality] = useState("good");
   const [social, setSocial] = useState("medium");
@@ -40,15 +63,27 @@ function AnalysisContent() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<Recommendation | null>(null);
+  const [loadingSavedResult, setLoadingSavedResult] = useState(true);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!childId) return;
-    fetch(`/api/daily_log?childId=${childId}&days=7`)
+    const encodedChildId = encodeURIComponent(childId);
+    fetch(`/api/daily_log?childId=${encodedChildId}&days=7`)
       .then((res) => res.json())
       .then((data) => setTracks((data.observations ?? []).slice(-8).reverse()))
       .catch(() => undefined);
+    fetch(`/api/recommendation?childId=${encodedChildId}`)
+      .then(async (response) => {
+        if (response.status === 404) return null;
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error);
+        return payload.recommendation as Recommendation;
+      })
+      .then((saved) => { if (saved) setResult(saved); })
+      .catch(() => undefined)
+      .finally(() => setLoadingSavedResult(false));
   }, [childId]);
 
   async function submit() {
@@ -80,7 +115,10 @@ function AnalysisContent() {
       setResult(recommendation);
       setTracks((items) => [{
         id: logData.observationId, date: today,
-        time: new Date().toTimeString().slice(0, 5), mood, freeTextNote: note,
+        time: new Date().toTimeString().slice(0, 5), mood,
+        meltdown: { totalCount: meltdown ? meltdownCount : 0 },
+        sleep: { quality: sleepQuality }, socialInteraction: social, focus,
+        freeTextNote: note,
       }, ...items].slice(0, 8));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra.");
@@ -102,7 +140,7 @@ function AnalysisContent() {
           <section className="checkin-card">
             <div className="card-title"><span>01</span><div><h2>Bé đang cảm thấy thế nào?</h2><p>Chọn cảm xúc gần nhất ở thời điểm này.</p></div></div>
             <div className="mood-picker">
-              {moods.map((item) => <button key={item.value} onClick={() => setMood(item.value)} className={mood === item.value ? "is-selected" : ""}><img className="face-image" src={item.image} alt={item.label} /><small>{item.label}</small></button>)}
+              {moods.map((item) => <button type="button" key={item.value} onClick={() => setMood(item.value as Mood)} className={mood === item.value ? "is-selected" : ""} aria-pressed={mood === item.value}><img className="face-image" src={item.image} alt={item.label} /><small>{item.label}</small></button>)}
             </div>
             <div className="checkin-fields">
               <label>
@@ -174,17 +212,21 @@ function AnalysisContent() {
           </section>
 
           <aside className="session-timeline">
-            <div className="card-title"><span>◷</span><div><h2>Dòng thời gian gần đây</h2><p>{tracks.length} lần ghi nhận</p></div></div>
+            <div className="card-title"><span>◷</span><div><h2>Dòng thời gian gần đây</h2><p>{tracks.length} lần ghi nhận · mới nhất trước</p></div></div>
             <div className="timeline-list">
-              {tracks.length ? tracks.map((track) => <article key={track.id}><i /><time>{track.time}</time><div><strong>{moodNames[track.mood] ?? track.mood}</strong><small>{track.date}{track.freeTextNote ? ` · ${track.freeTextNote}` : ""}</small></div></article>) : <p className="timeline-empty">Chưa có ghi nhận. Khoảnh khắc đầu tiên sẽ xuất hiện tại đây.</p>}
+              {tracks.length ? tracks.map((track) => {
+                const signals = trackSignals(track);
+                return <article key={track.id} className={signals.length ? "has-warning" : ""}><i /><time>{track.time}</time><div><strong>{moodNames[track.mood] ?? track.mood}{signals.length ? " · Cần theo dõi" : ""}</strong>{signals.length > 0 && <span className="timeline-signals">{signals.map((signal) => <b key={signal}>{signal}</b>)}</span>}<small>{track.date}{track.freeTextNote ? ` · ${track.freeTextNote}` : ""}</small></div></article>;
+              }) : <p className="timeline-empty">Chưa có ghi nhận. Khoảnh khắc đầu tiên sẽ xuất hiện tại đây.</p>}
             </div>
             <Link href={`/dashboard?childId=${childId}`} className="button button--ghost">Xem toàn bộ tiến trình →</Link>
           </aside>
         </div>
 
+        {loadingSavedResult && <section className="saved-result-loading">Đang tải gợi ý gần nhất đã lưu...</section>}
         {result && <section className="ai-result">
           <div className="result-intro"><span className={`severity severity--${result.severityLevel}`}>{result.severityLevel === "high" ? "Cần chú ý" : result.severityLevel === "moderate" ? "Theo dõi thêm" : "Ổn định"}</span><h2>AI đã phân tích xong</h2><p>{result.contextSummary}</p><blockquote>{result.empathyMessage}</blockquote></div>
-          <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động ngay</small><h3>{result.recommendation.title}</h3><p>{result.recommendation.whyThis}</p><span className="duration">{result.recommendation.durationMinutes} phút</span><ol>{result.recommendation.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol></div>
+          <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động ngay</small><h3>{result.recommendation.title}</h3><p>{result.recommendation.whyThis}</p><span className="duration">{result.recommendation.durationMinutes} phút</span><ol>{result.recommendation.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol><Link className="saved-recommendation-link" href={`/recommendation?childId=${encodeURIComponent(childId)}&observationId=${encodeURIComponent(result.logId)}`}>Xem chi tiết gợi ý đã lưu →</Link></div>
           {result.escalation.shouldSuggestExpert && <div className="expert-nudge"><p>{result.escalation.message}</p><Link href={`/expert?childId=${childId}&date=${today}`}>Trao đổi với chuyên gia →</Link></div>}
           <small className="disclaimer">{result.disclaimer}</small>
         </section>}

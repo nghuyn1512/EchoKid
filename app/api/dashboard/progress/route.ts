@@ -55,8 +55,8 @@ export async function GET(req: NextRequest){
             note: item.freeTextNote ?? "",
         })),
         });
-    } catch (err: any) {
-        if (err.message === "FORBIDDEN") {
+    } catch (err: unknown) {
+        if (err instanceof Error && err.message === "FORBIDDEN") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         console.error(err);

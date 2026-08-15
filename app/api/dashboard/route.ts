@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import {
   assertChildOwnership,
   getDailyLog,
+  getObservations,
   getRecentLogs,
   getRecommendation,
 } from "@/services/firestore.service";
@@ -11,7 +12,7 @@ import {
 function computeStreak(dates: string[]): number {
   const sorted = [...dates].sort().reverse();
   let streak = 0;
-  let cursor = new Date();
+  const cursor = new Date();
   for (const d of sorted) {
     const expected = cursor.toISOString().slice(0, 10);
     if (d === expected) {
@@ -39,10 +40,17 @@ export async function GET(req: NextRequest) {
     const todayLog = await getDailyLog(childId, today);
     const recentLogs = await getRecentLogs(childId, 7);
     const streak = computeStreak(recentLogs.map((l) => l.date));
-    const lastLogWithRec = recentLogs.find((l) => l.status === "completed");
-    const lastRecommendation = lastLogWithRec
-      ? await getRecommendation(lastLogWithRec.id)
-      : null;
+    const recentObservations = await getObservations(childId, 30);
+    let lastRecommendation = null;
+    let lastRecommendationObservation = null;
+    for (const observation of recentObservations.slice().reverse()) {
+      const recommendation = await getRecommendation(observation.id);
+      if (recommendation) {
+        lastRecommendation = recommendation;
+        lastRecommendationObservation = observation;
+        break;
+      }
+    }
 
     const meltdownAvg =
       recentLogs.reduce((sum, l) => sum + (l.meltdown?.totalCount ?? 0), 0) /
@@ -56,8 +64,9 @@ export async function GET(req: NextRequest) {
       streakDays: streak,
       lastRecommendation: lastRecommendation
         ? {
+            id: lastRecommendation.logId,
             activityTitle: lastRecommendation.recommendation.title,
-            date: lastLogWithRec!.date,
+            date: lastRecommendationObservation!.date,
           }
         : null,
       quickStats7d: {
@@ -65,8 +74,8 @@ export async function GET(req: NextRequest) {
         sleepAvgHours: Number(sleepAvg.toFixed(1)),
       },
     });
-  } catch (err: any) {
-    if (err.message === "FORBIDDEN") {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error(err);

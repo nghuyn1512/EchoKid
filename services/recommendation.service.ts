@@ -7,17 +7,37 @@ import {
 } from "@/services/firestore.service";
 import type { Child } from "@/types/child";
 import type { RecommendationResult } from "@/types/recommendation";
+import type { Observation } from "@/types/dailyLog";
+
+export function severityFromObservation(
+  observation: Observation,
+  aiSeverity: RecommendationResult["severityLevel"]
+): RecommendationResult["severityLevel"] {
+  const meltdownCount = observation.meltdown?.totalCount ?? 0;
+  const needsSupport =
+    ["irritable", "anxious", "withdrawn"].includes(observation.mood) ||
+    meltdownCount > 0 ||
+    observation.sleep?.quality === "poor" ||
+    observation.socialInteraction === "low" ||
+    observation.focus === "low";
+
+  if (aiSeverity === "high") return "high";
+  if (aiSeverity === "moderate" || needsSupport) return "moderate";
+  return "mild";
+}
 
 export async function generateRecommendation(
   child: Child,
   childId: string,
   observationId: string
 ): Promise<RecommendationResult> {
-  const cached = await getRecommendation(observationId);
-  if (cached) return cached;
-
   const current = await getObservation(observationId);
   if (!current || current.childId !== childId) throw new Error("OBSERVATION_NOT_FOUND");
+  const cached = await getRecommendation(observationId);
+  if (cached) {
+    const severityLevel = severityFromObservation(current, cached.severityLevel);
+    return { ...cached, severityLevel };
+  }
 
   const recent = (await getObservations(childId, 30))
     .filter((item) => item.id !== observationId && item.observedAt < current.observedAt);
@@ -25,7 +45,7 @@ export async function generateRecommendation(
 
   const result: Omit<RecommendationResult, "createdAt"> = {
     logId: observationId,
-    severityLevel: generated.severityLevel,
+    severityLevel: severityFromObservation(current, generated.severityLevel),
     empathyMessage: generated.empathyMessage,
     contextSummary: generated.contextSummary,
     recommendation: {

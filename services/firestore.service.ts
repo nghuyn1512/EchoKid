@@ -148,6 +148,8 @@ export async function upsertDailyLog(
 
 export async function createObservation(input: DailyLogInput): Promise<string> {
   const observedAt = new Date().toISOString();
+  const allowedMoods = ["calm", "irritable", "anxious", "happy", "withdrawn"];
+  const savedMood = input.mood && allowedMoods.includes(input.mood) ? input.mood : "calm";
   const meltdownOccurred = input.meltdown?.occurred || !!input.meltdownEvent;
   const meltdownCount = input.meltdown?.count ?? (input.meltdownEvent ? 1 : 0);
   const meltdownTrigger = input.meltdown?.trigger ?? input.meltdownEvent?.trigger ?? "";
@@ -156,7 +158,7 @@ export async function createObservation(input: DailyLogInput): Promise<string> {
     date: input.date,
     time: observedAt.slice(11, 16),
     observedAt,
-    mood: input.mood ?? "calm",
+    mood: savedMood,
     sleep: input.sleep ?? { hours: 0, quality: "good" },
     meal: input.meal ?? { ateNormally: true },
     meltdown: {

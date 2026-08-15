@@ -1,99 +1,183 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+
+type DashboardData = {
+  todayLogSubmitted: boolean;
+  streakDays: number;
+  lastRecommendation: { id: string; activityTitle: string; date: string } | null;
+  quickStats7d: { meltdownAvg: number; sleepAvgHours: number };
+};
 
 type Range = "day" | "week" | "month";
-type Observation = {
-  id: string; date: string; time: string; observedAt: string; mood: string;
-  sleepHours: number; meltdownCount: number; socialInteraction: string;
-  focus: string; note: string;
-};
-type Progress = {
-  summary: { logsSubmitted: number; meltdownTrend: string; sleepAvgHours: number; activitiesCompleted: number };
-  observations: Observation[];
+type ProgressObservation = { id: string; date: string; time: string; mood: string; sleepHours: number; meltdownCount: number };
+type ProgressData = {
+  summary: { logsSubmitted: number; meltdownTrend: "increasing" | "decreasing" | "stable"; sleepAvgHours: number; activitiesCompleted: number };
+  observations: ProgressObservation[];
 };
 
-const moodScore: Record<string, number> = { withdrawn: 1, anxious: 2, irritable: 2, calm: 4, happy: 5 };
-const moodLabel: Record<string, string> = { withdrawn: "Thu mình", anxious: "Lo âu", irritable: "Cáu gắt", calm: "Bình tĩnh", happy: "Vui vẻ" };
-const levelScore: Record<string, number> = { low: 1, medium: 2, high: 3 };
+const moodScores: Record<string, number> = { withdrawn: 1, anxious: 2, irritable: 2, calm: 4, happy: 5 };
+const rangeLabels: Record<Range, string> = { day: "Hôm nay", week: "7 ngày", month: "30 ngày" };
+
+type IconName = "spark" | "calendar" | "moon" | "heart" | "arrow" | "check";
+
+function Icon({ name }: { name: IconName }) {
+  const paths: Record<IconName, React.ReactNode> = {
+    spark: <><path d="m12 3 1.7 6.3L20 11l-6.3 1.7L12 19l-1.7-6.3L4 11l6.3-1.7L12 3Z" /><path d="m19 17 .6 2.4L22 20l-2.4.6L19 23l-.6-2.4L16 20l2.4-.6L19 17Z" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /></>,
+    moon: <path d="M20 15.2A8.5 8.5 0 0 1 8.8 4 8.5 8.5 0 1 0 20 15.2Z" />,
+    heart: <path d="M20.8 5.8a5.4 5.4 0 0 0-7.6 0L12 7l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 22l8.8-8.6a5.4 5.4 0 0 0 0-7.6Z" />,
+    arrow: <><path d="M5 12h14M14 7l5 5-5 5" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
 
 function DashboardContent() {
-  const params = useSearchParams();
-  const childId = params.get("childId");
-  const [range, setRange] = useState<Range>("week");
-  const [data, setData] = useState<Progress | null>(null);
+  const childId = useSearchParams().get("childId");
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [range, setRange] = useState<Range>("week");
+  const [progress, setProgress] = useState<ProgressData | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
+
+  const loadDashboard = useCallback(async (signal?: AbortSignal) => {
+    if (!childId) return;
+    await Promise.resolve();
+    if (signal?.aborted) return;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/dashboard?childId=${encodeURIComponent(childId)}`, { signal });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Không thể tải dashboard");
+      setData(payload);
+    } catch (requestError) {
+      if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+      setError("Chưa thể tải dữ liệu hôm nay. Bạn thử lại nhé.");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, [childId]);
 
   useEffect(() => {
     if (!childId) return;
-    setLoading(true);
-    fetch(`/api/dashboard/progress?childId=${childId}&range=${range}`)
-      .then(async (res) => { const value = await res.json(); if (!res.ok) throw new Error(value.error); return value; })
-      .then(setData).catch(() => setError("Không thể tải dữ liệu tiến trình.")).finally(() => setLoading(false));
+    const controller = new AbortController();
+    fetch(`/api/dashboard/progress?childId=${encodeURIComponent(childId)}&range=${range}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Không thể tải tiến trình");
+        return payload as ProgressData;
+      })
+      .then(setProgress)
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setProgress(null);
+      })
+      .finally(() => { if (!controller.signal.aborted) setProgressLoading(false); });
+    return () => controller.abort();
   }, [childId, range]);
 
-  const observations = useMemo(() => data?.observations ?? [], [data]);
-  const chartPoints = observations.length > 1
-    ? observations.map((item, index) => `${(index / (observations.length - 1)) * 100},${100 - (moodScore[item.mood] ?? 3) * 18}`).join(" ")
+  const visibleObservations = useMemo(() => (progress?.observations ?? []).slice(-12), [progress]);
+  const emotionPoints = visibleObservations.length > 1
+    ? visibleObservations.map((item, index) => `${(index / (visibleObservations.length - 1)) * 100},${100 - (moodScores[item.mood] ?? 3) * 18}`).join(" ")
     : "";
-  const happyRate = observations.length ? Math.round(observations.filter((item) => ["happy", "calm"].includes(item.mood)).length / observations.length * 100) : 0;
-  const socialAverage = observations.length ? observations.reduce((sum, item) => sum + (levelScore[item.socialInteraction] ?? 2), 0) / observations.length : 0;
+  const allProgressObservations = progress?.observations ?? [];
+  const positiveRate = allProgressObservations.length
+    ? Math.round(allProgressObservations.filter((item) => ["happy", "calm"].includes(item.mood) && item.meltdownCount === 0).length / allProgressObservations.length * 100)
+    : 0;
 
-  if (!childId) return <main className="flow-page"><div className="flow-shell"><section className="empty-state"><h1>Chưa chọn hồ sơ bé</h1><Link className="button button--primary" href="/children">Chọn bé</Link></section></div></main>;
+  useEffect(() => {
+    if (!childId) return;
+    const controller = new AbortController();
+    fetch(`/api/dashboard?childId=${encodeURIComponent(childId)}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Không thể tải dashboard");
+        return payload as DashboardData;
+      })
+      .then((payload) => { setData(payload); setError(""); })
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setError("Chưa thể tải dữ liệu hôm nay. Bạn thử lại nhé.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [childId]);
+
+  if (!childId) {
+    return <main className="dashboard-page"><div className="dashboard-shell"><section className="empty-state"><span>♡</span><h1>Hôm nay mình đồng hành cùng ai?</h1><p>Chọn hồ sơ của bé để xem nhịp chăm sóc trong ngày.</p><Link className="button button--primary" href="/children">Chọn hồ sơ bé</Link></section></div></main>;
+  }
+
+  const encodedChildId = encodeURIComponent(childId);
+  const todayHref = `/analysis?childId=${encodedChildId}`;
 
   return (
-    <main className="dashboard-page">
+    <main className="dashboard-page home-dashboard">
       <div className="dashboard-shell">
-        <header className="dashboard-header">
-          <div><span className="eyebrow"><i /> Bức tranh tiến trình</span><h1>Nhìn lại để hiểu con<br /><em>rõ hơn mỗi ngày.</em></h1><p>Dữ liệu được tổng hợp từ từng lần ghi nhận theo đúng thời gian.</p></div>
-          <div className="range-switch">{(["day", "week", "month"] as Range[]).map((item) => <button key={item} className={range === item ? "is-active" : ""} onClick={() => setRange(item)}>{item === "day" ? "Hôm nay" : item === "week" ? "7 ngày" : "30 ngày"}</button>)}</div>
+        <header className="home-dashboard__header">
+          <div><span className="eyebrow"><i /> Tổng quan hôm nay</span><h1>Mỗi ngày một chút,<br /><em>hiểu con thêm nhiều.</em></h1><p>Một góc nhỏ để ba mẹ theo dõi nhịp sinh hoạt và tiếp tục đồng hành cùng con.</p></div>
+          <div className="home-dashboard__date"><Icon name="calendar" /><span><small>Hôm nay</small><strong>{new Intl.DateTimeFormat("vi-VN", { weekday: "long", day: "2-digit", month: "long" }).format(new Date())}</strong></span></div>
         </header>
 
-        {error ? <div className="form-error">{error}</div> : null}
-        <section className="metric-grid">
-          <article><span className="metric-icon metric-icon--green">✦</span><small>Lần ghi nhận</small><strong>{loading ? "—" : observations.length}</strong><p>Trong khoảng đã chọn</p></article>
-          <article><span className="metric-icon metric-icon--aqua">◡</span><small>Ổn định tích cực</small><strong>{loading ? "—" : `${happyRate}%`}</strong><p>Bình tĩnh hoặc vui vẻ</p></article>
-          <article><span className="metric-icon metric-icon--cream">☾</span><small>Ngủ trung bình</small><strong>{loading ? "—" : `${data?.summary.sleepAvgHours ?? 0}h`}</strong><p>Mỗi lần ghi nhận</p></article>
-          <article><span className="metric-icon metric-icon--pink">♡</span><small>Tương tác</small><strong>{loading ? "—" : socialAverage >= 2.5 ? "Tốt" : socialAverage >= 1.5 ? "Vừa" : "Thấp"}</strong><p>Mức trung bình</p></article>
+        {error && <div className="dashboard-error" role="alert"><span>{error}</span><button type="button" onClick={() => void loadDashboard()}>Thử lại</button></div>}
+
+        <section className="home-dashboard__grid" aria-busy={loading}>
+          <article className={`today-checkin ${data?.todayLogSubmitted ? "is-complete" : ""}`}>
+            <div className="today-checkin__top"><span className="home-card-icon"><Icon name={data?.todayLogSubmitted ? "check" : "heart"} /></span><span className="today-checkin__status">{loading ? "Đang kiểm tra..." : data?.todayLogSubmitted ? "Đã hoàn thành hôm nay" : "Chưa ghi nhận hôm nay"}</span></div>
+            <div className="today-checkin__copy"><small>Khoảnh khắc hiện tại</small><h2>{data?.todayLogSubmitted ? "Cảm ơn ba mẹ đã lắng nghe con." : "Hôm nay bé cảm thấy thế nào?"}</h2><p>{data?.todayLogSubmitted ? "Bạn vẫn có thể thêm một ghi nhận mới khi cảm xúc hoặc hành vi của bé thay đổi." : "Chỉ vài phút ghi nhận sẽ giúp những gợi ý dành cho bé sát với thực tế hơn."}</p></div>
+            <Link className="button button--primary" href={todayHref}>{data?.todayLogSubmitted ? "Ghi nhận thêm" : "Bắt đầu ghi nhận"}<Icon name="arrow" /></Link>
+          </article>
+
+          <div className="home-dashboard__side">
+            <article className="streak-card"><div className="streak-card__badge"><span>✦</span><strong>{loading ? "—" : data?.streakDays ?? 0}</strong><small>ngày</small></div><div><small>Chuỗi đồng hành</small><h2>{(data?.streakDays ?? 0) > 0 ? "Mình đang làm rất tốt!" : "Bắt đầu chuỗi hôm nay"}</h2><p>Mỗi ghi nhận đều là một bước nhỏ để hiểu con hơn.</p></div></article>
+            <article className="recommendation-card">
+              <span className="home-card-icon home-card-icon--aqua"><Icon name="spark" /></span>
+              <div><small>Gợi ý gần nhất</small><h2>{loading ? "Đang tải gợi ý..." : data?.lastRecommendation?.activityTitle ?? "Chưa có hoạt động được gợi ý"}</h2>{data?.lastRecommendation ? <p>Từ ghi nhận ngày {new Intl.DateTimeFormat("vi-VN").format(new Date(`${data.lastRecommendation.date}T00:00:00`))}</p> : <p>Hoàn tất ghi nhận để nhận gợi ý phù hợp cho bé.</p>}</div>
+              {!loading && (data?.lastRecommendation
+                ? <Link className="recommendation-card__action" href={`/recommendation?childId=${encodedChildId}&observationId=${encodeURIComponent(data.lastRecommendation.id)}`}>Xem chi tiết gợi ý <Icon name="arrow" /></Link>
+                : <Link className="recommendation-card__action" href={todayHref}>Tạo gợi ý đầu tiên <Icon name="arrow" /></Link>)}
+            </article>
+          </div>
         </section>
 
-        <section className="charts-grid">
-          <article className="chart-card chart-card--wide">
-            <div className="chart-heading"><div><small>Biểu đồ cảm xúc</small><h2>Nhịp cảm xúc theo thời gian</h2></div><span className="legend-dot">● Mức tích cực</span></div>
-            <div className="line-chart">
-              <div className="axis-labels"><span>Vui</span><span>Bình tĩnh</span><span>Khó chịu</span><span>Thu mình</span></div>
-              {chartPoints ? <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Xu hướng cảm xúc"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#41C8C1" stopOpacity=".35"/><stop offset="1" stopColor="#41C8C1" stopOpacity="0"/></linearGradient></defs><polyline points={`0,100 ${chartPoints} 100,100`} fill="url(#area)" stroke="none"/><polyline points={chartPoints} fill="none" stroke="#41C8C1" strokeWidth="2.3" vectorEffect="non-scaling-stroke"/></svg> : <div className="no-chart">Cần ít nhất hai lần ghi nhận để vẽ xu hướng.</div>}
-              <div className="chart-times">{observations.slice(0, 6).map((item) => <span key={item.id}>{range === "day" ? item.time : item.date.slice(5)}</span>)}</div>
-            </div>
-          </article>
-
-          <article className="chart-card">
-            <div className="chart-heading"><div><small>Phân bố</small><h2>Cảm xúc nổi bật</h2></div></div>
-            <div className="donut-wrap">
-              <div className="donut" style={{ "--value": `${happyRate * 3.6}deg` } as React.CSSProperties}><span><strong>{happyRate}%</strong><small>tích cực</small></span></div>
-              <div className="mood-summary">{Object.entries(observations.reduce<Record<string, number>>((acc, item) => { acc[item.mood] = (acc[item.mood] ?? 0) + 1; return acc; }, {})).slice(0, 4).map(([mood, count]) => <p key={mood}><i />{moodLabel[mood] ?? mood}<b>{count}</b></p>)}</div>
-            </div>
-          </article>
-
-          <article className="chart-card">
-            <div className="chart-heading"><div><small>So sánh</small><h2>Ngủ qua các lần ghi</h2></div></div>
-            <div className="bar-chart">{observations.slice(-10).map((item) => <div key={item.id} title={`${item.date} ${item.time}: ${item.sleepHours}h`}><span style={{ height: `${Math.min(item.sleepHours / 12 * 100, 100)}%` }} /><small>{range === "day" ? item.time : item.date.slice(8)}</small></div>)}</div>
-          </article>
-
-          <article className="chart-card chart-card--wide">
-            <div className="chart-heading"><div><small>Chi tiết</small><h2>Dòng thời gian ghi nhận</h2></div><Link href={`/analysis?childId=${childId}`}>+ Ghi nhận mới</Link></div>
-            <div className="data-timeline">
-              {observations.length ? observations.slice().reverse().map((item) => <div key={item.id}><time><strong>{item.time}</strong><small>{item.date}</small></time><i /><section><span className={`mood-tag mood-tag--${item.mood}`}>{moodLabel[item.mood] ?? item.mood}</span><p>Ngủ {item.sleepHours}h · Tương tác {item.socialInteraction === "high" ? "tốt" : item.socialInteraction === "medium" ? "vừa" : "thấp"} · Tập trung {item.focus === "high" ? "tốt" : item.focus === "medium" ? "vừa" : "thấp"}</p>{item.note && <small>{item.note}</small>}</section></div>) : <p className="no-chart">Chưa có dữ liệu trong khoảng này.</p>}
-            </div>
-          </article>
+        <section className="home-dashboard__stats">
+          <div className="home-dashboard__section-title"><div><small>7 ngày gần đây</small><h2>Một nhịp nhìn thật nhẹ nhàng</h2></div><Link href={todayHref}>Ghi nhận mới <Icon name="arrow" /></Link></div>
+          <div className="quick-stat-grid">
+            <article><span className="home-card-icon home-card-icon--cream"><Icon name="moon" /></span><div><small>Giấc ngủ trung bình</small><strong>{loading ? "—" : `${data?.quickStats7d.sleepAvgHours ?? 0} giờ`}</strong><p>Mỗi ngày có ghi nhận</p></div></article>
+            <article><span className="home-card-icon home-card-icon--pink"><Icon name="heart" /></span><div><small>Số lần khủng hoảng</small><strong>{loading ? "—" : data?.quickStats7d.meltdownAvg ?? 0}</strong><p>Trung bình mỗi ngày</p></div></article>
+            <article className="quick-stat-cta"><div><small>Tiếp tục hành trình</small><strong>Quan sát đều, thấu hiểu sâu.</strong></div><Link href={todayHref} aria-label="Ghi nhận mới"><Icon name="arrow" /></Link></article>
+          </div>
         </section>
 
-        <section className="dashboard-actions">
-          <div><span>✦</span><h2>Cần một góc nhìn chuyên môn?</h2><p>Mang theo bản tóm tắt 30 ngày để buổi trao đổi hiệu quả hơn.</p></div>
-          <div><a className="button button--ghost" href={`/api/report?childId=${childId}`}>Tải bản tóm tắt ↓</a><Link className="button button--primary" href={`/expert?childId=${childId}&date=${new Date().toLocaleDateString("en-CA")}`}>Tìm chuyên gia →</Link></div>
+        <section className="progress-overview" aria-busy={progressLoading}>
+          <header className="progress-overview__header">
+            <div><span className="eyebrow"><i /> Thay đổi theo thời gian</span><h2>Nhìn thấy nhịp của con,<br /><em>không chỉ những con số.</em></h2><p>So sánh cảm xúc, giấc ngủ và các lần meltdown trong khoảng ba mẹ muốn quan sát.</p></div>
+            <div className="range-switch" aria-label="Chọn khoảng thời gian">{(["day", "week", "month"] as Range[]).map((item) => <button type="button" key={item} className={range === item ? "is-active" : ""} aria-pressed={range === item} onClick={() => { setProgressLoading(true); setRange(item); }}>{rangeLabels[item]}</button>)}</div>
+          </header>
+
+          <div className="progress-summary-grid">
+            <article><small>Lần quan sát</small><strong>{progressLoading ? "—" : allProgressObservations.length}</strong><p>Trong {rangeLabels[range].toLowerCase()}</p></article>
+            <article><small>Khoảnh khắc ổn định</small><strong>{progressLoading ? "—" : `${positiveRate}%`}</strong><p>Bình tĩnh/vui và không meltdown</p></article>
+            <article><small>Ngủ trung bình</small><strong>{progressLoading ? "—" : `${progress?.summary.sleepAvgHours ?? 0}h`}</strong><p>Trong khoảng đã chọn</p></article>
+            <article><small>Xu hướng meltdown</small><strong className={`trend trend--${progress?.summary.meltdownTrend ?? "stable"}`}>{progressLoading ? "—" : progress?.summary.meltdownTrend === "increasing" ? "Tăng" : progress?.summary.meltdownTrend === "decreasing" ? "Giảm" : "Ổn định"}</strong><p>So với nửa đầu khoảng</p></article>
+          </div>
+
+          <div className="progress-chart-grid">
+            <article className="progress-chart-card progress-chart-card--emotion">
+              <div className="progress-chart-title"><div><small>Cảm xúc</small><h3>Nhịp cảm xúc</h3></div><span>● Tích cực hơn</span></div>
+              {emotionPoints ? <div className="emotion-chart"><div className="emotion-axis"><span>Vui</span><span>Bình tĩnh</span><span>Khó chịu</span><span>Thu mình</span></div><svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Biểu đồ thay đổi cảm xúc"><defs><linearGradient id="emotion-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#41c8c1" stopOpacity=".38"/><stop offset="1" stopColor="#41c8c1" stopOpacity="0"/></linearGradient></defs><polygon points={`0,100 ${emotionPoints} 100,100`} fill="url(#emotion-area)"/><polyline points={emotionPoints} fill="none" stroke="#36aaa4" strokeWidth="2.5" vectorEffect="non-scaling-stroke"/></svg><div className="progress-labels">{visibleObservations.map((item) => <span key={item.id}>{range === "day" ? item.time : item.date.slice(5)}</span>)}</div></div> : <div className="progress-empty">Cần ít nhất hai lần ghi nhận để hiển thị đường thay đổi cảm xúc.</div>}
+            </article>
+
+            <article className="progress-chart-card">
+              <div className="progress-chart-title"><div><small>Sinh hoạt & dấu hiệu</small><h3>Ngủ và meltdown</h3></div></div>
+              {visibleObservations.length ? <div className="dual-bars">{visibleObservations.map((item) => <div className="dual-bars__item" key={item.id}><div className="dual-bars__plot"><i style={{ height: `${Math.min(item.sleepHours / 12 * 100, 100)}%` }} title={`Ngủ ${item.sleepHours} giờ`} /><b style={{ height: `${Math.min(item.meltdownCount / 4 * 100, 100)}%` }} title={`${item.meltdownCount} lần meltdown`} /></div><small>{range === "day" ? item.time : item.date.slice(5)}</small></div>)}</div> : <div className="progress-empty">Chưa có dữ liệu trong khoảng này.</div>}
+              <div className="bar-legend"><span><i /> Giờ ngủ</span><span><b /> Meltdown</span></div>
+            </article>
+          </div>
         </section>
       </div>
     </main>
@@ -101,5 +185,5 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
-  return <Suspense fallback={<main className="dashboard-page" />}><DashboardContent /></Suspense>;
+  return <Suspense fallback={<main className="dashboard-page home-dashboard"><div className="dashboard-shell"><div className="dashboard-skeleton" /></div></main>}><DashboardContent /></Suspense>;
 }
