@@ -117,6 +117,8 @@ export async function upsertDailyLog(
   if (input.focus) patch.focus = input.focus;
   if (input.freeTextNote !== undefined)
     patch.freeTextNote = input.freeTextNote;
+  if (input.activityFeedback !== undefined)
+    patch.activityFeedback = input.activityFeedback;
 
   if (!existing.exists()) {
     await setDoc(ref, {
@@ -170,6 +172,7 @@ export async function createObservation(input: DailyLogInput): Promise<string> {
     socialInteraction: input.socialInteraction ?? "medium",
     focus: input.focus ?? "medium",
     freeTextNote: input.freeTextNote ?? "",
+    activityFeedback: input.activityFeedback ?? "",
     status: input.markCompleted ? "completed" : "in_progress",
     createdAt: serverTimestamp(),
   });

@@ -4,16 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Mood } from "@/types/dailyLog";
+import type { RecommendationResult } from "@/types/recommendation";
 
-type Recommendation = {
-  logId: string;
-  severityLevel: "mild" | "moderate" | "high";
-  empathyMessage: string;
-  contextSummary: string;
-  recommendation: { title: string; durationMinutes: number; whyThis: string; steps: string[] };
-  escalation: { shouldSuggestExpert: boolean; message: string | null };
-  disclaimer: string;
-};
 type Track = {
   id: string;
   date: string;
@@ -24,6 +16,7 @@ type Track = {
   socialInteraction?: string;
   focus?: string;
   freeTextNote?: string;
+  activityFeedback?: string;
 };
 
 const moods = [
@@ -61,8 +54,9 @@ function AnalysisContent() {
   const [meltdownCount, setMeltdownCount] = useState(1);
   const [meltdownTrigger, setMeltdownTrigger] = useState("");
   const [note, setNote] = useState("");
+  const [activityFeedback, setActivityFeedback] = useState("");
   const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState<Recommendation | null>(null);
+  const [result, setResult] = useState<RecommendationResult | null>(null);
   const [loadingSavedResult, setLoadingSavedResult] = useState(true);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [error, setError] = useState("");
@@ -79,7 +73,7 @@ function AnalysisContent() {
         if (response.status === 404) return null;
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error);
-        return payload.recommendation as Recommendation;
+        return payload.recommendation as RecommendationResult;
       })
       .then((saved) => { if (saved) setResult(saved); })
       .catch(() => undefined)
@@ -96,6 +90,7 @@ function AnalysisContent() {
           childId, date: today, mood,
           sleep: { hours: sleepHours, quality: sleepQuality },
           meal: { ateNormally, notes: mealNotes }, socialInteraction: social, focus, freeTextNote: note,
+          activityFeedback,
           meltdown: {
             occurred: meltdown,
             count: meltdown ? meltdownCount : 0,
@@ -119,6 +114,7 @@ function AnalysisContent() {
         meltdown: { totalCount: meltdown ? meltdownCount : 0 },
         sleep: { quality: sleepQuality }, socialInteraction: social, focus,
         freeTextNote: note,
+        activityFeedback,
       }, ...items].slice(0, 8));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra.");
@@ -206,6 +202,7 @@ function AnalysisContent() {
                 )}
               </section>
               <label className="note-field">Ghi chú thêm<textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Điều gì vừa xảy ra? Có tác nhân nào đáng chú ý không?" /></label>
+              <label className="note-field">Phản hồi sau khi thử gợi ý trước<textarea value={activityFeedback} onChange={(e) => setActivityFeedback(e.target.value)} placeholder="Ví dụ: Hoạt động lăn bóng giúp con bình tĩnh hơn, nhưng 10 phút là hơi dài và con bỏ đi giữa chừng." /></label>
             </div>
             {error && <p className="form-error">{error}</p>}
             <button className="button button--primary submit-observation" onClick={submit} disabled={saving}>{saving ? "AI đang phân tích..." : "Lưu & phân tích bằng AI"} <span>✦</span></button>
@@ -216,7 +213,7 @@ function AnalysisContent() {
             <div className="timeline-list">
               {tracks.length ? tracks.map((track) => {
                 const signals = trackSignals(track);
-                return <article key={track.id} className={signals.length ? "has-warning" : ""}><i /><time>{track.time}</time><div><strong>{moodNames[track.mood] ?? track.mood}{signals.length ? " · Cần theo dõi" : ""}</strong>{signals.length > 0 && <span className="timeline-signals">{signals.map((signal) => <b key={signal}>{signal}</b>)}</span>}<small>{track.date}{track.freeTextNote ? ` · ${track.freeTextNote}` : ""}</small></div></article>;
+                return <article key={track.id} className={signals.length ? "has-warning" : ""}><i /><time>{track.time}</time><div><strong>{moodNames[track.mood] ?? track.mood}{signals.length ? " · Cần theo dõi" : ""}</strong>{signals.length > 0 && <span className="timeline-signals">{signals.map((signal) => <b key={signal}>{signal}</b>)}</span>}<small>{track.date}{track.freeTextNote ? ` · ${track.freeTextNote}` : ""}{track.activityFeedback ? ` · Phản hồi: ${track.activityFeedback}` : ""}</small></div></article>;
               }) : <p className="timeline-empty">Chưa có ghi nhận. Khoảnh khắc đầu tiên sẽ xuất hiện tại đây.</p>}
             </div>
             <Link href={`/dashboard?childId=${childId}`} className="button button--ghost">Xem toàn bộ tiến trình →</Link>
@@ -226,7 +223,7 @@ function AnalysisContent() {
         {loadingSavedResult && <section className="saved-result-loading">Đang tải gợi ý gần nhất đã lưu...</section>}
         {result && <section className="ai-result">
           <div className="result-intro"><span className={`severity severity--${result.severityLevel}`}>{result.severityLevel === "high" ? "Cần chú ý" : result.severityLevel === "moderate" ? "Theo dõi thêm" : "Ổn định"}</span><h2>AI đã phân tích xong</h2><p>{result.contextSummary}</p><blockquote>{result.empathyMessage}</blockquote></div>
-          <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động ngay</small><h3>{result.recommendation.title}</h3><p>{result.recommendation.whyThis}</p><span className="duration">{result.recommendation.durationMinutes} phút</span><ol>{result.recommendation.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol><Link className="saved-recommendation-link" href={`/recommendation?childId=${encodeURIComponent(childId)}&observationId=${encodeURIComponent(result.logId)}`}>Xem chi tiết gợi ý đã lưu →</Link></div>
+          <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động ngay</small><h3>{result.recommendation.title}</h3><p>{result.recommendation.whyThis}</p><span className="duration">{result.recommendation.durationMinutes} phút</span><ol>{result.recommendation.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol>{result.recommendation.references?.length ? <div className="action-plan__references"><strong>Nguồn tham khảo</strong><ul>{result.recommendation.references.map((reference) => <li key={reference.key}><b>{reference.title}</b> · {reference.organization} · {reference.note}</li>)}</ul></div> : null}<Link className="saved-recommendation-link" href={`/recommendation?childId=${encodeURIComponent(childId)}&observationId=${encodeURIComponent(result.logId)}`}>Xem chi tiết gợi ý đã lưu →</Link></div>
           {result.escalation.shouldSuggestExpert && <div className="expert-nudge"><p>{result.escalation.message}</p><Link href={`/expert?childId=${childId}&date=${today}`}>Trao đổi với chuyên gia →</Link></div>}
           <small className="disclaimer">{result.disclaimer}</small>
         </section>}

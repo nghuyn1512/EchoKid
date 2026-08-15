@@ -1,4 +1,18 @@
 export type Severity = "mild" | "moderate" | "high";
+export type ActivityReferenceKey =
+  | "esdm"
+  | "aba"
+  | "sensory_regulation"
+  | "who_cst"
+  | "aap_co_regulation"
+  | "cdc_play";
+
+export interface ActivityReference {
+  key: ActivityReferenceKey;
+  title: string;
+  organization: string;
+  note: string;
+}
 
 export interface AnalysisResult {
   flaggedPatterns: string[];
@@ -27,6 +41,7 @@ export interface RecommendationResult {
     durationMinutes: number;
     whyThis: string;
     steps: string[];
+    references?: ActivityReference[];
   };
   escalation: {
     shouldSuggestExpert: boolean;

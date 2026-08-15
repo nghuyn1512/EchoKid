@@ -36,7 +36,14 @@ export async function generateRecommendation(
   const cached = await getRecommendation(observationId);
   if (cached) {
     const severityLevel = severityFromObservation(current, cached.severityLevel);
-    return { ...cached, severityLevel };
+    return {
+      ...cached,
+      severityLevel,
+      recommendation: {
+        ...cached.recommendation,
+        references: cached.recommendation.references ?? [],
+      },
+    };
   }
 
   const recent = (await getObservations(childId, 30))
@@ -53,7 +60,7 @@ export async function generateRecommendation(
       ...generated.recommendation,
     },
     escalation: generated.escalation,
-    disclaimer: "Phân tích được tạo bởi AI từ dữ liệu phụ huynh vừa nhập và lịch sử EchoKid; không thay thế chẩn đoán hoặc điều trị y khoa.",
+    disclaimer: "Phân tích được tạo bởi AI từ dữ liệu phụ huynh vừa nhập, phản hồi sau hoạt động và lịch sử EchoKid; không thay thế chẩn đoán hoặc điều trị y khoa.",
   };
 
   await saveRecommendation(observationId, result);
