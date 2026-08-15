@@ -1,5 +1,8 @@
 # EchoKid
 
+<div class='logo' align='center'> 
+  <img src="/echokid/public/logo.png"> 
+</div>
 EchoKid is an AI-powered early childhood development support platform designed to help parents monitor daily behaviors, identify potential developmental concerns, and receive personalized recommendations.
 
 <p> Built for the hackathon with a focus on accessibility, early intervention, and practical support for families.</p>
@@ -41,9 +44,15 @@ Install dependencies
 npm install
 ```
 
-Create `.env.local`
+Fill key on `.env.example`
 
 ```env
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
 NEXT_PUBLIC_FIREBASE_API_KEY=
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=
@@ -52,9 +61,6 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 
 GEMINI_API_KEY=
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRECT=
 ```
 
 Run development server
