@@ -17,12 +17,14 @@ import {
 import { db } from "@/lib/firebase";
 import { AppUser, Child, CreateChildInput } from "@/types/child";
 import type { DailyLog, DailyLogInput, Observation } from "@/types/dailyLog";
+import type { FeedbackInput, FeedbackRecord } from "@/types/feedback";
 import type { RecommendationResult } from "@/types/recommendation";
 
 const daily_logs = "dailyLogs";
 const recommendations = "recommendations";
 const children = "children";
 const observations = "observations";
+const feedback = "feedback";
 
 export async function getOrCreateUser(params: {
   uid: string;
@@ -237,4 +239,39 @@ export async function getLogsInRange(childId: string, days: number): Promise<Dai
   );
   const snapshot = await getDocs(q);
   return snapshot.docs .map((d) => ({ id: d.id, ...d.data() } as DailyLog)).reverse(); 
+}
+
+export async function createFeedback(input: FeedbackInput): Promise<FeedbackRecord> {
+  const now = serverTimestamp();
+  const ref = await addDoc(collection(db, feedback), {
+    childId: input.childId,
+    observationId: input.observationId,
+    content: input.content,
+    wasHelpful: input.wasHelpful ?? null,
+    rating: input.rating ?? null,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const snapshot = await getDoc(ref);
+  return { id: snapshot.id, ...snapshot.data() } as FeedbackRecord;
+}
+
+export async function getFeedbackList(
+  childId: string,
+  observationId?: string
+): Promise<FeedbackRecord[]> {
+  const constraints = [where("childId", "==", childId)];
+  if (observationId) {
+    constraints.push(where("observationId", "==", observationId));
+  }
+
+  const snapshot = await getDocs(query(collection(db, feedback), ...constraints));
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() } as FeedbackRecord))
+    .sort((a, b) => {
+      const left = String(a.createdAt ?? "");
+      const right = String(b.createdAt ?? "");
+      return left.localeCompare(right);
+    });
 }
