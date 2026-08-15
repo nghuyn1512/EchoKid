@@ -17,7 +17,7 @@ import {
 import { db } from "@/lib/firebase";
 import { AppUser, Child, CreateChildInput } from "@/types/child";
 import type { DailyLog, DailyLogInput, Observation } from "@/types/dailyLog";
-import type { RecommendationResult } from "@/types/recommendation";
+import type { RecommendationFeedback, RecommendationResult } from "@/types/recommendation";
 
 const daily_logs = "dailyLogs";
 const recommendations = "recommendations";
@@ -234,4 +234,16 @@ export async function getLogsInRange(childId: string, days: number): Promise<Dai
   );
   const snapshot = await getDocs(q);
   return snapshot.docs .map((d) => ({ id: d.id, ...d.data() } as DailyLog)).reverse(); 
+}
+export async function saveFeedbackToObservation(params: {
+  childId: string;
+  observationId: string;
+  feedback: RecommendationFeedback;
+}) {
+  const { childId, observationId, feedback } = params;
+  const ref = doc(db, "children", childId, "observations", observationId);
+  await updateDoc(ref, {
+    feedback,
+    updatedAt: Date.now(),
+  });
 }

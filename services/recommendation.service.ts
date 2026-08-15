@@ -35,10 +35,16 @@ export async function generateRecommendation(
   if (!current || current.childId !== childId) throw new Error("OBSERVATION_NOT_FOUND");
   const cached = await getRecommendation(observationId);
   if (cached) {
-    const severityLevel = severityFromObservation(current, cached.severityLevel);
-    return { ...cached, severityLevel };
-  }
-
+  const severityLevel = severityFromObservation(current, cached.severityLevel);
+  return {
+    ...cached,
+    severityLevel,
+    recommendation: {
+      ...cached.recommendation,
+      references: cached.recommendation.references ?? [],
+    },
+  };
+}
   const recent = (await getObservations(childId, 30))
     .filter((item) => item.id !== observationId && item.observedAt < current.observedAt);
   const generated = await generateAIRecommendation(child, current, recent);

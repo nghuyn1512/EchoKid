@@ -26,6 +26,7 @@ export interface DailyLog {
   };
   socialInteraction: Level;
   focus: Level;
+  activityFeedback?: string;
   freeTextNote?: string;
   status: "in_progress" | "completed";
   editableUntil: string;
@@ -45,6 +46,7 @@ export interface DailyLogInput {
   };
   socialInteraction?: Level;
   focus?: Level;
+  activityFeedback?: string;
   freeTextNote?: string;
   markCompleted?: boolean;
 }
