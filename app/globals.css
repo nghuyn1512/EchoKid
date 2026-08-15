@@ -30,6 +30,7 @@ body {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
+.app-auth-loading{min-height:100vh;display:grid;place-content:center;gap:14px;padding:24px;background:var(--paper);color:var(--muted);font-size:12px;text-align:center}.app-auth-loading .dashboard-skeleton{width:min(520px,80vw);height:180px}
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }

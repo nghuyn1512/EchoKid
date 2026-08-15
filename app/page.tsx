@@ -1,6 +1,5 @@
 "use client";
 
-import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
 
 const featureCards = [
@@ -10,7 +9,6 @@ const featureCards = [
 ];
 
 export default function Home() {
-  const { data: session } = useSession();
   return (
     <main className="home-page">
       <div className="ambient ambient--one" />
@@ -22,11 +20,7 @@ export default function Home() {
             <h1><span className="hero-title-line">Hiểu cảm xúc.</span><em>Nuôi dưỡng kết nối.</em></h1>
             <p>EchoKid giúp ba mẹ ghi nhận những điều nhỏ bé, hiểu thay đổi của con và nhận gợi ý phù hợp cho từng thời điểm.</p>
             <div className="hero-actions">
-              {session ? (
-                <Link href="/children" className="button button--primary">Chọn bé để bắt đầu <span>→</span></Link>
-              ) : (
-                <button className="button button--primary" onClick={() => signIn("google")}>Bắt đầu miễn phí <span>→</span></button>
-              )}
+              <Link href="/login" className="button button--primary">Đăng nhập để bắt đầu <span>→</span></Link>
               <a href="#discover" className="text-link">Khám phá EchoKid <span>↓</span></a>
             </div>
             <div className="trust-row">
@@ -65,10 +59,8 @@ export default function Home() {
         </section>
 
         <section className="welcome-strip">
-          <div><span>✦</span><h2>{session ? "Hôm nay mình đồng hành cùng ai?" : "Sẵn sàng hiểu con hơn mỗi ngày?"}</h2><p>Chọn hồ sơ của bé trước khi bắt đầu phiên AI.</p></div>
-          {session
-            ? <Link href="/children" className="button button--dark">Đến trang chọn bé <span>→</span></Link>
-            : <button onClick={() => signIn("google")} className="button button--dark">Đăng nhập với Google <span>→</span></button>}
+          <div><span>✦</span><h2>Sẵn sàng hiểu con hơn mỗi ngày?</h2><p>Đăng nhập để bắt đầu không gian chăm sóc riêng của gia đình.</p></div>
+          <Link href="/login" className="button button--dark">Đến trang đăng nhập <span>→</span></Link>
         </section>
       </div>
     </main>

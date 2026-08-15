@@ -1,9 +1,21 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
-export default function LoginPage() {
+function LoginContent() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const { status } = useSession();
+  const requestedCallback = params.get("callbackUrl");
+  const callbackUrl = requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//") ? requestedCallback : "/dashboard";
+
+  useEffect(() => {
+    if (status === "authenticated") router.replace(callbackUrl);
+  }, [callbackUrl, router, status]);
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#FFE6BC_0%,_#ffffff_35%)] text-slate-900 px-5 py-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 rounded-[32px] bg-white/80 p-8 shadow-[0_30px_80px_rgba(70,180,51,0.12)] backdrop-blur-xl">
@@ -21,10 +33,11 @@ export default function LoginPage() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <button
-            onClick={() => signIn("google")}
+            onClick={() => signIn("google", { callbackUrl })}
+            disabled={status === "loading"}
             className="rounded-3xl bg-[#46B433] px-6 py-4 text-base font-semibold text-white shadow-[0_16px_40px_rgba(70,180,51,0.24)] transition hover:-translate-y-0.5"
           >
-            Đăng nhập bằng Google
+            {status === "loading" ? "Đang kiểm tra..." : "Đăng nhập bằng Google"}
           </button>
           <Link
             href="/"
@@ -46,4 +59,8 @@ export default function LoginPage() {
       </div>
     </main>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<main className="app-auth-loading"><p>Đang tải trang đăng nhập...</p></main>}><LoginContent /></Suspense>;
 }

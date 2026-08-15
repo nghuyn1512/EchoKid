@@ -1,8 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import Providers from "@/components/provider";
-import Navbar from "@/components/navbar";
-import { Suspense } from "react";
+import AppShell from "@/components/app-shell";
 import type { Metadata } from "next";
 import { Alfa_Slab_One, Roboto_Slab } from "next/font/google";
 
@@ -32,10 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi" className={`${alfaSlab.variable} ${robotoSlab.variable}`}>
       <body>
         <Providers>
-          <Suspense fallback={<div className="sidebar-fallback" aria-hidden="true" />}>
-            <Navbar />
-          </Suspense>
-          {children}
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

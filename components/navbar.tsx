@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 
 const navItems = [
-  { path: "/", label: "Trang chủ", icon: "home" },
+  { path: "/dashboard", label: "Tiến trình", icon: "chart" },
   { path: "/children", label: "Chọn bé", icon: "child" },
   { path: "/analysis", label: "AI đồng hành", icon: "spark" },
-  { path: "/dashboard", label: "Tiến trình", icon: "chart" },
   { path: "/expert", label: "Chuyên gia", icon: "doctor" },
 ];
 
@@ -34,7 +33,7 @@ export default function Navbar() {
   const { data: session, status } = useSession();
 
   function getHref(path: string) {
-    if (path === "/" || path === "/children" || !childId) return path;
+    if (path === "/children" || !childId) return path;
     if (path === "/expert") return `${path}?childId=${childId}&date=${today}`;
     return `${path}?childId=${childId}`;
   }
@@ -42,7 +41,7 @@ export default function Navbar() {
   return (
     <>
       <aside id="main-sidebar" className={sidebarOpen ? "app-sidebar is-open" : "app-sidebar"} aria-hidden={!sidebarOpen}>
-        <Link href="/" className="sidebar-brand" aria-label="EchoKid - Trang chủ">
+        <Link href={getHref("/dashboard")} className="sidebar-brand" aria-label="EchoKid - Tiến trình">
           <img className="sidebar-logo" src="/echokid-logo.png" alt="EchoKid" />
           <span><strong>EchoKid</strong><small>Hiểu con mỗi ngày</small></span>
         </Link>
@@ -77,14 +76,11 @@ export default function Navbar() {
         >
           <span /><span /><span />
         </button>
-        <Link href="/" className="topbar-brand" aria-label="EchoKid - Trang chủ">
+        <Link href={getHref("/dashboard")} className="topbar-brand" aria-label="EchoKid - Tiến trình">
           <img src="/echokid-logo.png" alt="EchoKid" />
           <strong>EchoKid</strong>
         </Link>
         <nav className="topbar-nav" aria-label="Điều hướng nhanh">
-          <Link href="/" className={pathname === "/" ? "is-active" : ""}>
-            <NavIcon name="home" /><span>Trang chủ</span>
-          </Link>
           <Link href={getHref("/dashboard")} className={pathname === "/dashboard" ? "is-active" : ""}>
             <NavIcon name="chart" /><span>Tiến trình</span>
           </Link>
@@ -110,19 +106,14 @@ export default function Navbar() {
                     <strong>{session.user.name ?? "Tài khoản"}</strong>
                     <small>{session.user.email ?? "Phụ huynh EchoKid"}</small>
                   </div>
-                  <button type="button" onClick={() => signOut()}>
+                  <button type="button" onClick={() => signOut({ callbackUrl: "/" })}>
                     <svg viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></svg>
                     Đăng xuất
                   </button>
                 </div>
               )}
             </div>
-          ) : (
-            <button type="button" onClick={() => signIn("google")}>
-              <svg viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></svg>
-              <span>Đăng nhập</span>
-            </button>
-          )}
+          ) : null}
         </nav>
       </header>
 
