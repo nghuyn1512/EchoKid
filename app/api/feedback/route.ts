@@ -12,13 +12,11 @@ import type { FeedbackInput } from "@/types/feedback";
 function isValidRating(value: unknown): value is number {
 return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5;
 }
- 
 export async function POST(req: NextRequest) {
 const session = await getServerSession(authOptions);
 if (!session?.user?.id) {
 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
- 
 const body = (await req.json()) as FeedbackInput;
 if (!body.childId || !body.observationId || !body.content?.trim()) {
 return NextResponse.json(
@@ -32,7 +30,6 @@ return NextResponse.json(
 { status: 400 }
 );
 }
- 
 try {
 await assertChildOwnership(body.childId, session.user.id);
 const observation = await getObservation(body.observationId);
