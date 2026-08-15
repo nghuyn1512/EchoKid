@@ -16,6 +16,14 @@ function RecommendationDetail() {
   const observationId = params.get("observationId");
   const [data, setData] = useState<DetailPayload | null>(null);
   const [error, setError] = useState("");
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [wasHelpful, setWasHelpful] = useState<boolean | undefined>(undefined);
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const [feedbackDeferred, setFeedbackDeferred] = useState(false);
 
   useEffect(() => {
     if (!childId || !observationId) return;
@@ -34,6 +42,52 @@ function RecommendationDetail() {
       });
     return () => controller.abort();
   }, [childId, observationId]);
+
+  useEffect(() => {
+    if (!feedbackOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !feedbackSaving) setFeedbackOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [feedbackOpen, feedbackSaving]);
+
+  async function submitFeedback(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!childId || !observationId) return;
+    if (wasHelpful === undefined) {
+      setFeedbackError("Vui lòng cho biết gợi ý có hữu ích với bé không.");
+      return;
+    }
+    if (!feedbackContent.trim()) {
+      setFeedbackError("Vui lòng chia sẻ ngắn gọn kết quả sau khi thực hiện.");
+      return;
+    }
+
+    setFeedbackSaving(true);
+    setFeedbackError("");
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          childId,
+          observationId,
+          content: feedbackContent.trim(),
+          wasHelpful,
+          rating,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Không thể lưu phản hồi.");
+      setFeedbackSaved(true);
+      setFeedbackOpen(false);
+    } catch (cause) {
+      setFeedbackError(cause instanceof Error ? cause.message : "Không thể lưu phản hồi.");
+    } finally {
+      setFeedbackSaving(false);
+    }
+  }
 
   if (!childId || !observationId) {
     return <main className="flow-page"><div className="flow-shell"><section className="empty-state"><span>✦</span><h1>Chưa chọn gợi ý</h1><p>Quay lại tổng quan để mở gợi ý gần nhất của bé.</p><Link className="button button--primary" href={childId ? `/dashboard?childId=${encodeURIComponent(childId)}` : "/children"}>Quay lại tổng quan</Link></section></div></main>;
@@ -64,10 +118,32 @@ function RecommendationDetail() {
             <h2>Điều AI nhận thấy</h2><p>{result.contextSummary}</p><blockquote>{result.empathyMessage}</blockquote>
           </div>
           <div className="action-plan"><span className="action-plan__icon">✦</span><small>Gợi ý hành động</small><h3>{result.recommendation.title}</h3><p>{result.recommendation.whyThis}</p><span className="duration">{result.recommendation.durationMinutes} phút</span><ol>{result.recommendation.steps.map((step, index) => <li key={`${index}-${step}`}><span>{index + 1}</span>{step}</li>)}</ol></div>
+          <section className="recommendation-feedback-cta">
+            <div><small>Phản hồi từ phụ huynh</small><h3>{feedbackSaved ? "Cảm ơn bạn đã chia sẻ kết quả" : feedbackDeferred ? "Bạn có thể quay lại sau khi thực hiện" : "Bạn đã thực hiện gợi ý này chưa?"}</h3><p>{feedbackSaved ? "Phản hồi đã được ghi nhận để các gợi ý sau phù hợp hơn với bé." : feedbackDeferred ? "EchoKid sẽ chỉ ghi nhận feedback khi bạn đã thử hoạt động cùng bé." : "Phản hồi của bạn giúp AI hiểu bé hơn và cải thiện những gợi ý tiếp theo để phù hợp hơn với bé."}</p></div>
+            {!feedbackSaved && <div className="recommendation-feedback-cta__actions"><button type="button" className="button button--primary" onClick={() => { setFeedbackDeferred(false); setFeedbackOpen(true); }}>Đã thực hiện</button><button type="button" className="button button--ghost" onClick={() => setFeedbackDeferred(true)}>Chưa thực hiện</button></div>}
+          </section>
           {result.escalation.shouldSuggestExpert && <div className="expert-nudge"><p>{result.escalation.message}</p><Link href={`/expert?childId=${encodeURIComponent(childId)}&date=${data.observation.date}`}>Trao đổi với chuyên gia →</Link></div>}
           <small className="disclaimer">{result.disclaimer}</small>
         </section>
       </div>
+
+      {feedbackOpen && (
+        <div className="feedback-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !feedbackSaving) setFeedbackOpen(false); }}>
+          <section className="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+            <button type="button" className="feedback-modal__close" aria-label="Đóng" onClick={() => setFeedbackOpen(false)} disabled={feedbackSaving}>×</button>
+            <span className="eyebrow"><i /> Ghi nhận sau hoạt động</span>
+            <h2 id="feedback-title">Gợi ý này đã diễn ra thế nào?</h2>
+            <p className="feedback-modal__intro">Phản hồi cho “{result.recommendation.title}” sẽ giúp AI hiểu điều gì phù hợp với bé.</p>
+            <form onSubmit={submitFeedback}>
+              <fieldset><legend>Gợi ý có hữu ích không?</legend><div className="feedback-choice"><button type="button" className={wasHelpful === true ? "is-selected" : ""} onClick={() => setWasHelpful(true)}>Có, hữu ích</button><button type="button" className={wasHelpful === false ? "is-selected" : ""} onClick={() => setWasHelpful(false)}>Chưa hữu ích</button></div></fieldset>
+              <fieldset><legend>Mức độ phù hợp</legend><div className="feedback-rating" aria-label="Đánh giá từ 1 đến 5">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className={value <= rating ? "is-selected" : ""} aria-label={`${value} sao`} onClick={() => setRating(value)}>★</button>)}</div></fieldset>
+              <label className="feedback-note">Kết quả sau khi thực hiện<textarea value={feedbackContent} onChange={(event) => setFeedbackContent(event.target.value)} placeholder="Ví dụ: Bé tham gia khoảng 5 phút, bình tĩnh hơn và chủ động giao tiếp..." rows={4} /></label>
+              {feedbackError && <p className="form-error" role="alert">{feedbackError}</p>}
+              <div className="feedback-modal__actions"><button type="button" className="button button--ghost" onClick={() => setFeedbackOpen(false)} disabled={feedbackSaving}>Để sau</button><button type="submit" className="button button--primary" disabled={feedbackSaving}>{feedbackSaving ? "Đang ghi nhận..." : "Gửi phản hồi"}</button></div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
