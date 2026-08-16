@@ -178,8 +178,9 @@ Hãy thực hiện:
 6. Ở whyThis, giải thích rõ vì sao hoạt động này phù hợp với lần ghi nhận hiện tại và feedback của phụ huynh (nếu có), viết 1-2 câu ngắn, cụ thể theo dữ liệu.
 7. Các bước phải đủ cụ thể để phụ huynh làm theo, từ 3 đến 5 bước.
 8. Chọn 1-3 referenceKeys phù hợp nhất từ danh sách được phép để làm nguồn tham khảo cho hoạt động.
-9. Chỉ đặt severityLevel="high" khi dữ liệu thể hiện nguy cơ an toàn, tự gây thương tích, hoặc mất kiểm soát tăng mạnh. Nếu dữ liệu không đủ thì chọn "mild".
-10. Viết hoàn toàn bằng tiếng Việt, giọng ấm áp, không phán xét.
+9. Đặt severityLevel="high" khi có nguy cơ an toàn, tự gây thương tích, mất kiểm soát tăng mạnh, cảm xúc đổi qua lại liên tục nhiều lần trong một ngày, hoặc nhiều lần ghi nhận liên tiếp duy trì ở mức thấp.
+10. Với mọi trường hợp severityLevel="high", đặt escalation.shouldSuggestExpert=true và viết lời khuyến khích phụ huynh đặt lịch với bác sĩ/chuyên gia. Không chẩn đoán hoặc gây hoảng sợ.
+11. Viết hoàn toàn bằng tiếng Việt, giọng ấm áp, không phán xét.
 `.trim();
 
   const response = await ai.models.generateContent({
