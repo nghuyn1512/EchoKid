@@ -113,6 +113,7 @@ function RecommendationDetail() {
         </header>
 
         <section className="ai-result recommendation-detail__result">
+          {result.escalation.shouldSuggestExpert && <div className={`expert-alert ${result.severityLevel === "high" ? "expert-alert--high" : ""}`}><span className="expert-alert__icon">!</span><div><small>Khuyến nghị ưu tiên</small><h2>Ba mẹ nên trao đổi với bác sĩ hoặc chuyên gia</h2><p>{result.escalation.message}</p></div><Link href={`/expert?childId=${encodeURIComponent(childId)}&date=${data.observation.date}`}>Đặt lịch ngay →</Link></div>}
           <div className="result-intro">
             <span className={`severity severity--${result.severityLevel}`}>{result.severityLevel === "high" ? "Cần chú ý" : result.severityLevel === "moderate" ? "Theo dõi thêm" : "Ổn định"}</span>
             <h2>Điều AI nhận thấy</h2><p>{result.contextSummary}</p><blockquote>{result.empathyMessage}</blockquote>
@@ -122,7 +123,6 @@ function RecommendationDetail() {
             <div><small>Phản hồi từ phụ huynh</small><h3>{feedbackSaved ? "Cảm ơn bạn đã chia sẻ kết quả" : feedbackDeferred ? "Bạn có thể quay lại sau khi thực hiện" : "Bạn đã thực hiện gợi ý này chưa?"}</h3><p>{feedbackSaved ? "Phản hồi đã được ghi nhận để các gợi ý sau phù hợp hơn với bé." : feedbackDeferred ? "EchoKid sẽ chỉ ghi nhận feedback khi bạn đã thử hoạt động cùng bé." : "Phản hồi của bạn giúp AI hiểu bé hơn và cải thiện những gợi ý tiếp theo để phù hợp hơn với bé."}</p></div>
             {!feedbackSaved && <div className="recommendation-feedback-cta__actions"><button type="button" className="button button--primary" onClick={() => { setFeedbackDeferred(false); setFeedbackOpen(true); }}>Đã thực hiện</button><button type="button" className="button button--ghost" onClick={() => setFeedbackDeferred(true)}>Chưa thực hiện</button></div>}
           </section>
-          {result.escalation.shouldSuggestExpert && <div className="expert-nudge"><p>{result.escalation.message}</p><Link href={`/expert?childId=${encodeURIComponent(childId)}&date=${data.observation.date}`}>Trao đổi với chuyên gia →</Link></div>}
           <small className="disclaimer">{result.disclaimer}</small>
         </section>
       </div>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { assertChildOwnership, getObservation, getObservations, getRecommendation } from "@/services/firestore.service";
-import { generateRecommendation, severityFromObservation } from "@/services/recommendation.service";
+import { assessRiskPatterns, generateRecommendation, severityFromObservation } from "@/services/recommendation.service";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -36,10 +36,20 @@ export async function GET(req: NextRequest) {
     if (!recommendation) {
       return NextResponse.json({ error: "Không tìm thấy gợi ý." }, { status: 404 });
     }
+    const previousObservations = (await getObservations(childId, 30))
+      .filter((item) => item.id !== observation.id && item.observedAt < observation.observedAt);
+    const risk = assessRiskPatterns(observation, previousObservations);
+    const severityLevel = risk.high ? "high" : severityFromObservation(observation, recommendation.severityLevel);
     return NextResponse.json({
       recommendation: {
         ...recommendation,
-        severityLevel: severityFromObservation(observation, recommendation.severityLevel),
+        severityLevel,
+        escalation: severityLevel === "high"
+          ? {
+              shouldSuggestExpert: true,
+              message: recommendation.escalation.message || `EchoKid nhận thấy tình trạng thay đổi đáng chú ý. ${risk.reasons.join(" ")} Ba mẹ nên đặt lịch trao đổi với bác sĩ hoặc chuyên gia để được đánh giá kỹ hơn.`,
+            }
+          : recommendation.escalation,
       },
       observation,
     });
