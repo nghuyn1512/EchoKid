@@ -82,7 +82,7 @@ http://localhost:3000
 - Tran Thi Ngoc Huyen - Project Manager & Backend Dev
 - Truong Do Nhu Quynh - Frontend Dev & UI/UX
 - Nguyen Thi Dieu Linh - Business
-- Nguyen Thi Ngoc - UI/UX
+- Nguyen Thi Bao Trang - Child Development & Researcher
 
 ---
 
