@@ -1,8 +1,5 @@
 # EchoKid
 
-<div class='logo' align='center'> 
-  <img src="/echokid/public/logo.png"> 
-</div>
 EchoKid is an AI-powered early childhood development support platform designed to help parents monitor daily behaviors, identify potential developmental concerns, and receive personalized recommendations.
 
 <p> Built for the hackathon with a focus on accessibility, early intervention, and practical support for families.</p>
@@ -77,13 +74,10 @@ http://localhost:3000
 
 ---
 
-## 👥 Team
+## 👥 Our Team
 
 - Tran Thi Ngoc Huyen - Project Manager & Backend Dev
 - Truong Do Nhu Quynh - Frontend Dev & UI/UX
+- Ngo Viet Anh - Data/AI Recommendation Engineer
 - Nguyen Thi Dieu Linh - Business
 - Nguyen Thi Bao Trang - Child Development & Researcher
-
----
-
-Built with ❤️ for the Build@HUB Hackathon'26.
